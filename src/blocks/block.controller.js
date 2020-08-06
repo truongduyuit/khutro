@@ -1,6 +1,7 @@
 const blockService = require('./block.service')
 const _ = require('lodash');
 const {isEmpty} = require('lodash');
+const configs = require('../../configs/app.config')
 
 const GetBlocksOwner = async (req, res, next) => {
     try {
@@ -11,13 +12,12 @@ const GetBlocksOwner = async (req, res, next) => {
             error: {
                 message: result.error
             }
-        }) 
+        })
 
-        console.log("result", result)
         return res.status(200).json({
             message: 'Lấy danh sách khu trọ thành công !',
             blocks: result
-        }) 
+        })
     } catch (error) {
         return next(error)
     }

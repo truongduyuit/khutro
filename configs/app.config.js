@@ -6,8 +6,18 @@ const EMAIL_ACCOUNT = {
 
 const PORT = 3001
 const SECRET_KEY = "chungnguyentruongduy"
-const USER_ROLE = ["admin", "owner", "customer"]
-const TOKEN_LIFE = "1h"
+const TOKEN_LIFE = "4h"
+
+const USER_ROLE_ENUM = {
+    ALL: "all",
+    ADMIN : "admin",
+    OWNER: "owner",
+    CUSTOMER: "customer"
+}
+
+const USER_ROLES = Object.keys(USER_ROLE_ENUM).map(function(role){
+    return USER_ROLE_ENUM[role]
+})
 
 module.exports = {
   PORT,
@@ -15,5 +25,6 @@ module.exports = {
   DATABASE_HOST,
   EMAIL_ACCOUNT,
   TOKEN_LIFE,
-  USER_ROLE
+  USER_ROLES,
+  USER_ROLE_ENUM
 }

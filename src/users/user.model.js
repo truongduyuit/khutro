@@ -14,7 +14,7 @@ const schema = new Schema({
   },
   Role: {
     type: String,
-    enum: configs.USER_ROLE,
+    enum: configs.USER_ROLES,
     default: "owner"
   },
   Confirmed: {

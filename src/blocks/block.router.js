@@ -1,18 +1,18 @@
 const express = require('express')
 const router = express.Router()
 
-const blockController = require('./block.controller')
+const {USER_ROLE_ENUM} = require('../../configs/app.config')
 
 const {AuthenticateRoleJWT} = require('../../middlewares/authenticateRoleJWT')
 const idValidator = require('../../helpers/idValidator.helper')
 const {ValidateBody, ValidateQueryParam} = require('../../middlewares/validation')
 const {BlockValidator, BlockDeleteManyValidator} = require('./block.validator')
 
-
-router.get('/owner-blocks', AuthenticateRoleJWT('owner'), blockController.GetBlocksOwner)
-    .post('/create', AuthenticateRoleJWT('owner'), ValidateBody(BlockValidator), blockController.CreateBlock)
-    .put('/update', AuthenticateRoleJWT('owner'),ValidateQueryParam(idValidator) ,ValidateBody(BlockValidator), blockController.UpdateBlock)
-    .delete('/delete', AuthenticateRoleJWT('owner'),ValidateQueryParam(idValidator), ValidateBody(idValidator), blockController.DeleteBlock)
-    .delete('/delete-many', AuthenticateRoleJWT('owner'), ValidateBody(BlockDeleteManyValidator), blockController.DeleteBlocks)
+const blockController = require('./block.controller')
+router.get('/owner-blocks', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), blockController.GetBlocksOwner)
+    .post('/create', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateBody(BlockValidator), blockController.CreateBlock)
+    .put('/update', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]),ValidateQueryParam(idValidator) ,ValidateBody(BlockValidator), blockController.UpdateBlock)
+    .delete('/delete', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]),ValidateQueryParam(idValidator), ValidateBody(idValidator), blockController.DeleteBlock)
+    .delete('/delete-many', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateBody(BlockDeleteManyValidator), blockController.DeleteBlocks)
 
 module.exports = router

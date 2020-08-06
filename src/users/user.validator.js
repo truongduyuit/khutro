@@ -1,9 +1,10 @@
 const joi = require('@hapi/joi')
+const {USER_ROLES} = require('../../configs/app.config')
 
 const UserValidator = joi.object({
     Email: joi.string().required().email(),
     Password: joi.string().required().pattern(new RegExp('^[a-zA-Z0-9]{6,32}$')),
-    Role: joi.string(),
+    Role: joi.string().valid(USER_ROLES.toString()),
     Confirmed: joi.bool(),
     FullName: joi.string().min(6).max(50),
     Address: joi.string().min(6).max(50),

@@ -3,7 +3,7 @@ const configs = require('../configs/app.config')
 
 const userService = require('../src/users/user.service')
 
-const AuthenticateRoleJWT = role => {
+const AuthenticateRoleJWT = roles => {
     return async (req, res, next) => {
         const authHeader = await req.headers['authorization']
 
@@ -18,13 +18,21 @@ const AuthenticateRoleJWT = role => {
                 })
 
                 const user = await userService.GetUserById(userId.payload)
-                if (role !== 'all') {
-                    if (user.Role !== role) return res.status(401).json({
-                        error: {
-                            message: 'Bạn không có quyền thực hiện !'
-                        }
-                    })
+
+                let error = false
+
+                if (roles.indexOf(configs.USER_ROLE_ENUM.ALL) === -1)
+                {
+                    if (roles.indexOf(user.Role) === -1) {
+                        error = true
+                    }
                 }
+
+                if (error) return res.status(401).json({
+                    error: {
+                        message: 'Bạn không có quyền thực hiện !'
+                    }
+                })
 
                 console.log('Xác thực thành công !')
                 req.userId = userId.payload
