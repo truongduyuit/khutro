@@ -1,0 +1,42 @@
+            CREATE: /api/block/create
+            {POST} authenticateRoleJWT: headers['authorization'], validateBody
+            body: {
+                "NameBlock": "Tòa A3",
+                "Address": "Thủ Đức",
+                "Description": "ktx",
+                "Owner": "5f292fe2165d6c1c240cd596",
+                "PriceFrom": 500000,
+                "PriceTo": 1000000,
+                "Images": ["images\\myImages-1596676940297lich thi.png","images\\myImages-1596676940299meo.jpg"]
+            }
+
+---------------------------------------------------------------------
+            GET_OWNER_BLOCKS: /api/block/get-blocks
+            {GET} authenticateRoleJWT: headers['authorization']
+            body: {}
+
+---------------------------------------------------------------------
+            UPDATE_BLOCK: /api/block/update?idBlock=
+            {PUT} authenticateRoleJWT: headers['authorization'], ValidateQueryParam, validateBody
+            body: {
+                "NameBlock": "Tòa A3",
+                "Address": "Thủ Đức",
+                "Description": "ktx",
+                "PriceFrom": 500000,
+                "PriceTo": 1000000,
+                "Images": ["images\\myImages-1596676940297lich thi.png","images\\myImages-1596676940299meo.jpg"]
+            }
+
+ ---------------------------------------------------------------------
+            DELETE_BLOCK: /api/block/delete?_id=5f2b774e14cb4587600567d2
+            {PUT} authenticateRoleJWT: headers['authorization'], ValidateQueryParam, validateBody
+            body: {
+                "_id": "5f2b774e14cb4587600567d2"
+            }
+
+---------------------------------------------------------------------
+            DELETE_BLOCKs: /api/block/delete-many?_id=5f2b774e14cb4587600567d2&_id=5f2b774e14cb4587600567d2
+            {PUT} authenticateRoleJWT: headers['authorization'], ValidateQueryParam, validateBody
+            body: {
+                "_ids": ["5f2b774e14cb4587600567d2", "5f2b774e14cb4587600567d2"]
+            }

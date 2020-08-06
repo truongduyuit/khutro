@@ -1,0 +1,35 @@
+                    REGISTER: /api/user/register
+                    {POST} validateBody
+                    body: {
+                        "Email": "ibesttrollvn1@gmail.com",
+                        "Password": "password"
+                    }
+
+---------------------------------------------------------------------
+                    LOGIN: /api/user/login
+                    {POST} validateBody
+                    body: {
+                        "Email": "ibesttrollvn1@gmail.com",
+                        "Password": "password"
+                    }
+
+---------------------------------------------------------------------
+                    CONFIRM_EMAIL: /api/user/confirm/:confirmToken
+                    {GET}
+
+---------------------------------------------------------------------
+                    CHANGE_PASSWORD: /api/user/change-password
+                    {PUT} authenticateRoleJWT: headers['authorization'], validateBody
+                    body: {
+                        "oldPassword": "oldPassword",
+                        "newPassword": "newPassword",
+                    }
+
+---------------------------------------------------------------------
+                    CHANGE_INFO: /api/user/change-info
+                    {PUT} authenticateRoleJWT: headers['authorization'], validateBody
+                    body: {
+                        "FullName": "Chung Nguyễn Trường Duy",
+                        "Address": "Sông Ray, Cẩm Mỹ, Đồng Nai",
+                        "PhoneNumber": "0342525812"
+                    }
