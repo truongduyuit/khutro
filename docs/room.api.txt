@@ -1,0 +1,48 @@
+                    CREATE: /api/room/create
+                    {POST} authenticateRoleJWT: headers['authorization'], validateBody
+                    body: {
+                        "nameRoom": "Phòng 207",
+                        "floor": 2,
+                        "square": 40,
+                        "price": 190000,
+                        "description": "Phòng 6 người không máy lạnh",
+                        "maxPeople": 6,
+                        "block": "5f2caeade38d44261808a90f"
+                    }
+
+---------------------------------------------------------------------
+                    GET_BLOCK_ROOMS: /api/room/owner-block-rooms?_id=5f2caeb1e38d44261808a910                       // _id: block
+                    {GET} authenticateRoleJWT: headers['authorization'], ValidateQueryParam, validateBody
+                    body: {}
+
+---------------------------------------------------------------------
+                    GET_BLOCK_ROOMS: /api/room?_id=5f2cca1e69c7cf07a4cc6ca8                                         // _id: room
+                    {GET} authenticateRoleJWT: headers['authorization'], ValidateQueryParam, validateBody
+                    body: {}
+
+---------------------------------------------------------------------
+                    UPDATE_ROOM: /api/room/update?_id=5f2cfc952ebf26c8f0d6ecc8                                      // _id: room
+                    {PUT} authenticateRoleJWT: headers['authorization'], ValidateQueryParam, validateBody
+                    body: {
+                            "_id": "5f2cfc952ebf26c8f0d6ecc8",
+                            "nameRoom": "Phòng 207",
+                            "floor": 2,
+                            "square": 50,
+                            "description": "Phòng 6 người không máy lạnh",
+                            "maxPeople": 6,
+                            "block": "5f2caeade38d44261808a90f"
+                        }
+---------------------------------------------------------------------
+                    DELETE_ROOM: /api/room/delete?_id=5f2cca1e69c7cf07a4cc6ca8                                     // _id: room
+                    {DELETE} authenticateRoleJWT: headers['authorization'], ValidateQueryParam, validateBody
+                    body: {}
+
+---------------------------------------------------------------------
+                    DELETE_ROOM: /api/room/delete-many                                // _id: room
+                    {DELETE} authenticateRoleJWT: headers['authorization'], ValidateQueryParam, validateBody
+                    body: {
+                        "_ids": [
+                            "5f2d14f53f71122c54799b11",
+                            "5f2d15093f71122c54799b13"
+                        ]
+                    }

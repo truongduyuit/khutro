@@ -3,10 +3,12 @@ const routers = express.Router();
 
 const userRouter = require('./users/user.router')
 const blockRouter = require('./blocks/block.router')
+const roomRouter = require('./rooms/room.router')
 const Upload = require('../middlewares/uploadFiles')
 
 routers.use('/user', userRouter)
 routers.use('/block', blockRouter)
+routers.use('/room', roomRouter)
 
 routers.post('/upload-image', Upload.array('myImages', 10), (req,res, next) => {
     const paths = []

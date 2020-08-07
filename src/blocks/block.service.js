@@ -12,14 +12,25 @@ const GetBlocksOwner = async (userId) => {
             }
         }
 
-        // if (user.Role !== 'owner') return {
-        //     error: {
-        //         message: 'Bạn không phải là quản lý khu trọ !'
-        //     }
-        // }
-
-        const blocks = await blockModel.find({Owner: userId})
+        const blocks = await blockModel.find({Owner: userId, Status: true}).populate('Rooms')
         return blocks
+    } catch (error) {
+        return new Error(error)
+    }
+}
+
+const GetBlockById = async (userId, blockId) => {
+    try {
+        const blocks = await GetBlocksOwner(userId)
+        const result = blocks.find(block => block._id.toString() === blockId)
+
+        if (result) return result
+
+        return {
+            error: {
+                message: 'Không tìm thấy khu trọ !'
+            }
+        }
     } catch (error) {
         return new Error(error)
     }
@@ -27,15 +38,8 @@ const GetBlocksOwner = async (userId) => {
 
 const CreateBlock = async (userId, block) =>{
     try {
-        const user = await userService.GetUserById(userId)
-        if (!user) return {
-            error: {
-                message: 'Người dùng không chính xác !'
-            }
-        }
+        const blocks = await blockModel.findOne({NameBlock: block.NameBlock, Status: true})
 
-        const blocks = await blockModel.findOne({NameBlock: block.NameBlock})
-        
         if (blocks) return {
             error: {
                 message: 'Tên khu trọ đã tổn tại !'
@@ -43,7 +47,7 @@ const CreateBlock = async (userId, block) =>{
         }
 
         const newBlock = new blockModel(block)
-        newBlock.Owner = user._id
+        newBlock.Owner = userId
 
         const result = await newBlock.save()
         if (!result) return {
@@ -53,7 +57,6 @@ const CreateBlock = async (userId, block) =>{
         user.Blocks.push(newBlock._id)
         await user.save()
 
-
         return newBlock
     } catch (error) {
         return new Error(error)
@@ -62,13 +65,6 @@ const CreateBlock = async (userId, block) =>{
 
 const UpdateBlock = async (userId, block) =>{
     try {
-        const user = await userService.GetUserById(userId)
-        if (!user) return {
-            error: {
-                message: 'Người dùng không chính xác !'
-            }
-        }
-
         if (user.Blocks.indexOf(block._id) === -1) return {
             error: {
                 message: 'Khu trọ không phải của bạn!'
@@ -124,12 +120,12 @@ const DeleteBlock = async (userId, blockId) => {
 
 const DeleteBlocks = async (userId, blockIds) => {
     try {
-        let user = await userService.GetUserById(userId)
-        if (!user) return {
-            error: {
-                message: 'Người dùng không chính xác !'
-            }
-        }
+        // let user = await userService.GetUserById(userId)
+        // if (!user) return {
+        //     error: {
+        //         message: 'Người dùng không chính xác !'
+        //     }
+        // }
 
         const err = false
         let newBlocks =[...user.Blocks]
@@ -167,6 +163,7 @@ const DeleteBlocks = async (userId, blockIds) => {
 
 module.exports = {
     GetBlocksOwner,
+    GetBlockById,
     CreateBlock,
     UpdateBlock,
     DeleteBlock,
