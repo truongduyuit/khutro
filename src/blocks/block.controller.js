@@ -23,6 +23,28 @@ const GetBlocksOwner = async (req, res, next) => {
     }
 }
 
+const GetBlockById = async (req, res, next) => {
+    try {
+        const {userId} = req
+        const {_id} = req.query
+
+        const result = await blockService.GetBlockById(userId, _id)
+
+        if (result.error) return res.status(500).json({
+            error: {
+                message: result.error.message
+            }
+        })
+
+        return res.status(200).json({
+            message: 'Tìm kiếm khu trọ thành công',
+            block: result
+        })
+    } catch (error) {
+        return next(error)
+    }
+}
+
 const CreateBlock = async (req, res, next) => {
     try {
         const {userId} = req
@@ -134,6 +156,7 @@ const DeleteBlocks = async (req, res, next) => {
 
 module.exports = {
     GetBlocksOwner,
+    GetBlockById,
     CreateBlock,
     UpdateBlock,
     DeleteBlock,

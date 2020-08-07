@@ -16,7 +16,12 @@
             body: {}
 
 ---------------------------------------------------------------------
-            UPDATE_BLOCK: /api/block/update?idBlock=
+            GET_BLOCK_BY_ID: /api/block?_id=5f2caeb1e38d44261808a910
+            {GET} authenticateRoleJWT: headers['authorization'], ValidateQueryParam
+            body: {}
+
+---------------------------------------------------------------------
+            UPDATE_BLOCK: /api/block/update?_id=5f2b774e14cb4587600567d2
             {PUT} authenticateRoleJWT: headers['authorization'], ValidateQueryParam, validateBody
             body: {
                 "NameBlock": "Tòa A3",
