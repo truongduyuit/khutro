@@ -76,9 +76,9 @@ const UpdateRoom = async (req, res, next) => {
         })
 
         const _result = await roomService.UpdateRoom(userId, _room)
-        if (result.error) return res.status(500).json({
+        if (_result.error) return res.status(500).json({
             error: {
-                message: result.error.message
+                message: _result.error.message
             }
         })
 

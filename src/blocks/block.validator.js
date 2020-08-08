@@ -9,6 +9,8 @@ const BlockValidator = joi.object({
     images: joi.array().items(joi.string().min(3)),
     priceFrom: joi.number().min(0).max(1000000000),
     priceTo: joi.number().min(joi.ref('priceFrom')).max(1000000000),
+    rooms: joi.array().items(joi.string().regex(/^[0-9a-fA-F]{24}$/)),
+    services: joi.array().items(joi.string().regex(/^[0-9a-fA-F]{24}$/))
 })
 
 const BlockDeleteManyValidator = joi.object({
