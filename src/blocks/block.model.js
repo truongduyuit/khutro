@@ -29,6 +29,10 @@ const schema = new Schema({
     rooms: [{
         type: Schema.Types.ObjectId,
         ref: 'room'
+    }],
+    services: [{
+        type: Schema.Types.ObjectId,
+        ref: 'room'
     }]
 })
 

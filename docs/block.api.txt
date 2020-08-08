@@ -38,7 +38,7 @@
             body: {}
 
 ---------------------------------------------------------------------
-            DELETE_BLOCKs: /api/block/delete-many?_id=5f2b774e14cb4587600567d2&_id=5f2b774e14cb4587600567d2
+            DELETE_BLOCKs: /api/block/delete-many
             {PUT} authenticateRoleJWT: headers['authorization'], ValidateQueryParam, validateBody
             body: {
                 "_ids": ["5f2b774e14cb4587600567d2", "5f2b774e14cb4587600567d2"]

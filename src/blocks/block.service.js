@@ -1,13 +1,13 @@
 const mongoose = require('mongoose')
 const blockModel = require('./block.model')
 const roomService = require('../rooms/room.service')
+const serviceService = require('../services/service.service')
 const userService = require('../users/user.service')
 const _ = require('lodash');
 
 const CreateBlock = async (userId, block) =>{
     try {
         const blocks = await blockModel.findOne({nameBlock: block.nameBlock})
-
         if (blocks) return {
             error: {
                 message: 'Tên khu trọ đã tổn tại !'
@@ -48,22 +48,23 @@ const GetBlocksOwner = async (userId) => {
 
 const GetBlockById = async (userId, blockId) => {
     try {
-
         const _blocks = await GetBlocksOwner(userId)
+
         let result = null
         _blocks.forEach(block => {
             if (block._id.toString() === blockId && block.isDeleted === false){
                 result = block
-                return result
+                return
             }
         })
-        if (result) return result
 
-        return {
+        if (!result) return {
             error: {
                 message: 'Không tìm thấy khu trọ !'
             }
         }
+
+        return result
     } catch (error) {
         return new Error(error)
     }
@@ -111,8 +112,9 @@ const DeleteBlock = async (userId, blockId) => {
                 message: 'Khu trọ không phải của bạn !'
             }
         }
-
+        
         await roomService.DeleteRooms(userId, _block.rooms)
+        await serviceService.DeleteServices(userId, _block.services)
         await _block.updateOne({
             isDeleted: true
         })

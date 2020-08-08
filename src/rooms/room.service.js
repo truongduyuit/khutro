@@ -1,4 +1,3 @@
-const mongoose = require('mongoose')
 const _ = require('lodash')
 
 const roomModel = require('./room.model')
@@ -50,7 +49,7 @@ const GetBlockRooms = async (userId, blockId) => {
                 message: _block.error.message
             }
         }
-        const _rooms = await roomModel.find({block: blockId}).populate('block')
+        const _rooms = await roomModel.find({block: blockId, isDeleted: false}).populate('block')
 
 
         if (_rooms.error) return {
@@ -89,6 +88,21 @@ const GetRoomById = async (userId, roomId) => {
 
 const UpdateRoom = async (userId, room) => {
     try {
+        const _rooms = await GetBlockRooms(userId, room.block)
+        let _error = false
+        _rooms.forEach(_room => {
+            if (_room.nameRoom === room.nameRoom && _room._id.toString() !== room._id) {
+                _error = true
+                return
+            }
+        })
+        if (_error) return {
+            error: {
+                message: 'Tên phòng đã tồn tại !'
+            }
+        }
+
+
         const _room = await GetRoomById(userId, room._id)
         if (_room.error) return {
             error:{
@@ -98,8 +112,10 @@ const UpdateRoom = async (userId, room) => {
 
         // thay đổi khu trọ
         if (_room.block._id.toString() !== room.block) {
-
-            const _oldBlock = await GetBlockById(userId, _room.block._id.toString())
+            const _oldBlock = await blockModel.findOne({
+                _id: _room.block._id,
+                owner: userId
+            })
             if (_oldBlock.error) return {
                 error: {
                     message: _oldBlock.error.message
@@ -116,12 +132,15 @@ const UpdateRoom = async (userId, room) => {
             })
             await _room.save()
 
-            const oldRooms = _.remove(_oldBlock.Rooms, id => id === _room.id)
-            await _oldBlock.updateOne({Rooms: oldRooms})
+            const oldRooms = _.remove(_oldBlock.rooms, id => id === _room.id)
+            await _oldBlock.updateOne({rooms: oldRooms})
             await _oldBlock.save()
 
-            const _newBlock = await GetBlockById(userId, room.block)
-            await _newBlock.Rooms.push(_room._id)
+            const _newBlock = await blockModel.findOne({
+                _id: room.block,
+                owner: userId
+            })
+            await _newBlock.rooms.push(_room._id)
             await _newBlock.save()
 
             return "okk"
