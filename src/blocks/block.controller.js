@@ -3,6 +3,26 @@ const _ = require('lodash');
 const {isEmpty} = require('lodash');
 const configs = require('../../configs/app.config')
 
+const CreateBlock = async (req, res, next) => {
+    try {
+        const {userId} = req
+        const block = req.body
+
+        const result = await blockService.CreateBlock(userId, block)
+
+        if (result.error) return res.status(500).json({
+            error: {
+                message: result.error.message
+            }
+        })
+
+        return res.status(201).json({
+            message: 'Tạo khu trọ thành công !'
+        })
+    } catch (error) {
+        return next(error)
+    }
+}
 const GetBlocksOwner = async (req, res, next) => {
     try {
         const {userId} = req
@@ -45,28 +65,6 @@ const GetBlockById = async (req, res, next) => {
     }
 }
 
-const CreateBlock = async (req, res, next) => {
-    try {
-        const {userId} = req
-        const block = req.body
-
-        const result = await blockService.CreateBlock(userId, block)
-
-        if (result.error) return res.status(500).json({
-            error: {
-                message: result.error.message
-            }
-        })
-
-        return res.status(201).json({
-            message: 'Tạo khu trọ thành công !',
-            block: result
-        })
-    } catch (error) {
-        return next(error)
-    }
-}
-
 const UpdateBlock = async (req, res, next) => {
     try {
         const {userId} = req
@@ -82,7 +80,7 @@ const UpdateBlock = async (req, res, next) => {
         const result = await blockService.UpdateBlock(userId, block)
         if (result.error) return res.status(400).json({
             error: {
-                message: result.error
+                message: result.error.message
             }
         })
 
@@ -104,13 +102,6 @@ const DeleteBlock = async (req, res, next) => {
     try {
         const {userId} = req
         const idBlockQuery = req.query._id
-        const blockIdBody = req.body._id
-
-        if (idBlockQuery !== blockIdBody) return res.status(500).json({
-            error: {
-                message: 'Mã khu trọ không trùng khớp'
-            }
-        })
 
         const result = await blockService.DeleteBlock(userId, idBlockQuery)
         if (result.error) return res.status(500).json({
@@ -132,12 +123,16 @@ const DeleteBlocks = async (req, res, next) => {
         const {userId} = req
         const idBlockQuery = req.query._id
         const blockIdBody = req.body._ids
+        
+        let newIdBlockQuery
+        if (Array.isArray(idBlockQuery)) newIdBlockQuery = idBlockQuery
+        else newIdBlockQuery = [idBlockQuery]
 
         if (!_.isEqual(idBlockQuery, blockIdBody)) return res.status(500).json({
-            error: {
-                message: 'Mã khu trọ không trùng khớp'
-            }
-        })
+                error: {
+                    message: 'Mã khu trọ không trùng khớp'
+                }
+            })
 
         const result = await blockService.DeleteBlocks(userId, blockIdBody)
         if (result.error) return res.status(500).json({

@@ -2,31 +2,31 @@ const mongoose = require('mongoose')
 const {Schema} = mongoose
 
 const schema = new Schema({
-    NameBlock: {
+    nameBlock: {
         type: String,
         required: true,
         unique: true
     },
-    Address: String,
-    Description: String,
-    Images: [String],
-    PriceFrom : {
+    address: String,
+    description: String,
+    images: [String],
+    priceFrom : {
         type: Number,
         default: 0
     },
-    PriceTo : {
+    priceTo : {
         type: Number,
         default: 0
     },
-    Status: {
+    isDeleted: {
         type: Boolean,
-        default: true,
+        default: false,
     },
-    Owner: {
+    owner: {
         type: Schema.Types.ObjectId,
         ref: 'user'
     },
-    Rooms: [{
+    rooms: [{
         type: Schema.Types.ObjectId,
         ref: 'room'
     }]

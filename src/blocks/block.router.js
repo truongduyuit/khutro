@@ -13,7 +13,7 @@ router.get('/', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateQueryParam(
     .get('/owner-blocks', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), blockController.GetBlocksOwner)
     .post('/create', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateBody(BlockValidator), blockController.CreateBlock)
     .put('/update', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]),ValidateQueryParam(idValidator) ,ValidateBody(BlockValidator), blockController.UpdateBlock)
-    .delete('/delete', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]),ValidateQueryParam(idValidator), ValidateBody(idValidator), blockController.DeleteBlock)
+    .delete('/delete', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]),ValidateQueryParam(idValidator), blockController.DeleteBlock)
     .delete('/delete-many', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateBody(BlockDeleteManyValidator), blockController.DeleteBlocks)
 
 module.exports = router
