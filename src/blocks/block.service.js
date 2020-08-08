@@ -1,44 +1,12 @@
 const mongoose = require('mongoose')
 const blockModel = require('./block.model')
+const roomService = require('../rooms/room.service')
 const userService = require('../users/user.service')
 const _ = require('lodash');
 
-const GetBlocksOwner = async (userId) => {
-    try {
-        const user = await userService.GetUserById(userId)
-        if (!user) return {
-            error: {
-                message: 'Người dùng không chính xác !'
-            }
-        }
-
-        const blocks = await blockModel.find({Owner: userId, Status: true}).populate('Rooms')
-        return blocks
-    } catch (error) {
-        return new Error(error)
-    }
-}
-
-const GetBlockById = async (userId, blockId) => {
-    try {
-        const blocks = await GetBlocksOwner(userId)
-        const result = blocks.find(block => block._id.toString() === blockId)
-
-        if (result) return result
-
-        return {
-            error: {
-                message: 'Không tìm thấy khu trọ !'
-            }
-        }
-    } catch (error) {
-        return new Error(error)
-    }
-}
-
 const CreateBlock = async (userId, block) =>{
     try {
-        const blocks = await blockModel.findOne({NameBlock: block.NameBlock, Status: true})
+        const blocks = await blockModel.findOne({nameBlock: block.nameBlock})
 
         if (blocks) return {
             error: {
@@ -47,7 +15,7 @@ const CreateBlock = async (userId, block) =>{
         }
 
         const newBlock = new blockModel(block)
-        newBlock.Owner = userId
+        newBlock.owner = userId
 
         const result = await newBlock.save()
         if (!result) return {
@@ -62,30 +30,7 @@ const CreateBlock = async (userId, block) =>{
         return new Error(error)
     }
 }
-
-const UpdateBlock = async (userId, block) =>{
-    try {
-        if (user.Blocks.indexOf(block._id) === -1) return {
-            error: {
-                message: 'Khu trọ không phải của bạn!'
-            }
-        }
-
-        const blocks = await blockModel.findOne({NameBlock: block.NameBlock, _id: !block.id})
-        if (blocks) return {
-            error: {
-                message: 'Tên khu trọ đã tổn tại !'
-            }
-        }
-
-        const newBlock = await blockModel.findByIdAndUpdate(block._id, block)
-        return newBlock
-    } catch (error) {
-        return new Error(error)
-    }
-}
-
-const DeleteBlock = async (userId, blockId) => {
+const GetBlocksOwner = async (userId) => {
     try {
         const user = await userService.GetUserById(userId)
         if (!user) return {
@@ -94,25 +39,86 @@ const DeleteBlock = async (userId, blockId) => {
             }
         }
 
-        if (user.Blocks.indexOf(blockId) === -1) return {
+        const blocks = await blockModel.find({owner: userId, isDeleted: false}).populate('rooms')
+        return blocks
+    } catch (error) {
+        return new Error(error)
+    }
+}
+
+const GetBlockById = async (userId, blockId) => {
+    try {
+
+        const _blocks = await GetBlocksOwner(userId)
+        let result = null
+        _blocks.forEach(block => {
+            if (block._id.toString() === blockId && block.isDeleted === false){
+                result = block
+                return result
+            }
+        })
+        if (result) return result
+
+        return {
             error: {
-                message: 'Khu trọ không phải của bạn!'
+                message: 'Không tìm thấy khu trọ !'
+            }
+        }
+    } catch (error) {
+        return new Error(error)
+    }
+}
+
+const UpdateBlock = async (userId, block) =>{
+    try {
+        const _block = await GetBlockById(userId, block._id)
+        if (_block.error) return {
+            error: {
+                message: _block.error.message
             }
         }
 
-        const newBlocks = _.remove(user.Blocks, id => id === blockId)
-        await user.updateOne({Blocks: newBlocks})
-        await user.save()
+        const _blocks = await GetBlocksOwner(userId)
+        _blocks.forEach(item => {
+            if (item._id.toString() !== block._id && item.nameBlock.toString() === block.nameBlock) return {
+                error: {
+                    message: 'Tên khu trọ đã tổn tại !'
+                }
+            }
+        })
 
-        const result = await blockModel.findByIdAndRemove(blockId)
 
-        if (!result) return {
+        await _block.updateOne({
+            nameBlock : block.nameBlock ? block.nameBlock : _block.nameBlock,
+            address : block.address ? block.address : _block.address,
+            description : block.description ? block.description : _block.description,
+            images : block.images ? block.images : _block.images,
+            priceFrom : block.priceFrom ? block.priceFrom : _block.priceFrom,
+            priceTo : block.priceTo ? block.priceTo : _block.priceTo,
+        })
+        await _block.save()
+        return _block
+    } catch (error) {
+        return new Error(error)
+    }
+}
+
+const DeleteBlock = async (userId, blockId) => {
+    try {
+        const _block = await blockModel.findById(blockId)
+        if (userId !== _block.owner.toString()) return {
             error: {
-                message: 'Khu trọ không tồn tại'
+                message: 'Khu trọ không phải của bạn !'
             }
         }
 
-        return result
+        await roomService.DeleteRooms(userId, _block.rooms)
+        await _block.updateOne({
+            isDeleted: true
+        })
+        await _block.save()
+
+        return "ok"
     } catch (error) {
         return new Error(error)
     }
@@ -120,42 +126,28 @@ const DeleteBlock = async (userId, blockId) => {
 
 const DeleteBlocks = async (userId, blockIds) => {
     try {
-        // let user = await userService.GetUserById(userId)
-        // if (!user) return {
-        //     error: {
-        //         message: 'Người dùng không chính xác !'
-        //     }
-        // }
 
-        const err = false
-        let newBlocks =[...user.Blocks]
-        blockIds.forEach( async blockId => {
-            if (user.Blocks.indexOf(blockId) === -1) return {
-                error: {
-                    message: 'Khu trọ không phải của bạn!'
-                }
-            }
+        const _blocks = await blockModel.find({owner: userId})
 
-            result = await blockModel.findByIdAndRemove(blockId)
-            if (!result) {
-                err = true
+        let _error = true
+        _blocks.forEach(block => {
+            if (_.indexOf(blockIds, block._id.toString()) === -1){
+                _error = false
                 return
             }
-
-            _.remove(newBlocks, id => id == blockId)
-
-            await user.updateOne({Blocks: newBlocks})
         })
 
-        await user.save()
-
-        if (err) return {
+        if (_error) return {
             error: {
-                message: 'Khu trọ không tồn tại'
+                message: 'Danh sách mã khu trọ không đúng'
             }
         }
 
-        return {}
+        blockIds.forEach(blockId => {
+            return DeleteBlock(userId, blockId)
+        })
+
+        return "ok"
     } catch (error) {
         return new Error(error)
     }

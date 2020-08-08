@@ -2,27 +2,24 @@ const mongoose = require('mongoose')
 const _ = require('lodash')
 
 const roomModel = require('./room.model')
-const {GetBlockById} = require('../blocks/block.service')
-const { GetUserById } = require('../users/user.service')
+const blockModel = require('../blocks/block.model')
 
 const CreateRoom = async (userId, room) => {
     try {
-        const _block = await GetBlockById(userId, room.block)
-        if (_block.error) return {
+        const _rooms = await GetBlockRooms(userId, room.block)
+        if (_rooms.error) return {
             error:{
-                message: _block.error.message
+                message: _rooms.error.message
             }
         }
 
-        const _rooms = await roomModel.find({block: _block._id}).populate('block')
-        let _error = false
-        _rooms.forEach(roomItem => {
-            if (roomItem.nameRoom === room.nameRoom) {
+        let _error= false
+        _rooms.forEach(_room =>{
+            if (_room.nameRoom === room.nameRoom) {
                 _error = true
-                return
+                return _error
             }
         })
-
         if (_error)  return {
             error:{
                 message: 'Tên phòng đã tồn tại !'
@@ -31,28 +28,30 @@ const CreateRoom = async (userId, room) => {
 
         const _newRoom = new roomModel(room)
         await _newRoom.save()
-        _block.Rooms.push(_newRoom._id)
+
+        const _block = await blockModel.findById(room.block)
+        _block.rooms.push(_newRoom._id)
         await _block.save()
 
-        return {}
+        return "ok"
     } catch (error) {
         return new Error(error)
     }
 }
-
 const GetBlockRooms = async (userId, blockId) => {
     try {
-        const _block = await GetBlockById(userId,blockId)
+        const _block = await blockModel.findOne({
+            _id: blockId,
+            owner: userId
+        })
+
         if (_block.error) return {
             error:{
                 message: _block.error.message
             }
         }
+        const _rooms = await roomModel.find({block: blockId}).populate('block')
 
-        const _rooms = await roomModel.find({
-            block: _block._id,
-            isDeleted: false
-        }).populate('block')
 
         if (_rooms.error) return {
             error:{
@@ -76,7 +75,7 @@ const GetRoomById = async (userId, roomId) => {
             }
         }
 
-        if (userId !== _room.block.Owner.toString())  return {
+        if (userId !== _room.block.owner.toString())  return {
             error:{
                 message: 'Không tìm thấy thông tin phòng !'
             }
@@ -100,15 +99,12 @@ const UpdateRoom = async (userId, room) => {
         // thay đổi khu trọ
         if (_room.block._id.toString() !== room.block) {
 
-            console.log("_room.block._id.toString()", _room.block._id.toString())
             const _oldBlock = await GetBlockById(userId, _room.block._id.toString())
             if (_oldBlock.error) return {
                 error: {
                     message: _oldBlock.error.message
                 }
             }
-
-            console.log("_oldBlock", _oldBlock)
 
             await _room.updateOne({
                 nameRoom: room.nameRoom ? room.nameRoom : _room.nameRoom,
@@ -182,7 +178,7 @@ const DeleteRooms = async (userId, roomIds) => {
                 }
             }
 
-            if (userId !== _room.block.Owner.toString()) return {
+            if (userId !== _room.block.owner.toString()) return {
                 error:{
                     message: 'Phòng không phải của bạn'
                 }
