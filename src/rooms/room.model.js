@@ -13,7 +13,7 @@ const schema = new Schema({
     maxPeople: Number,
     isDeleted: {
         type: Boolean,
-        default: false,
+        default: false
     },
     block: {
         type: Schema.Types.ObjectId,

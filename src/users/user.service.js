@@ -3,22 +3,22 @@ const passwordHelper = require('../../helpers/password.helper')
 const mailHelper = require('../../helpers/mail.helper')
 const tokenHelper = require('../../helpers/token.helper')
 const userModel = require('./user.model')
-const Register = async (Email, Password) => {
+const Register = async (email, password) => {
   try {
-    if (Password.length < 6)
+    if (password.length < 6)
         return {
             error: {
                 message : 'Mật khẩu phải tối thiếu 6 ký tự'
             }
         }
-    if (Password.length >= 32)
+    if (password.length >= 32)
         return {
             error: {
                 message : 'Mật khẩu tối đa 32 ký tự'
             }
         }
 
-    let user = await UserModel.findOne({Email})
+    let user = await UserModel.findOne({email})
     if (user) {
         return {
             error: {
@@ -28,24 +28,24 @@ const Register = async (Email, Password) => {
     }
 
     const newUser = new UserModel({
-      Email,
-      Password
+      email,
+      password
     })
 
-    const newPassword = await passwordHelper.HashPassword(Password)
-    newUser.Password = newPassword
+    const newPassword = await passwordHelper.HashPassword(password)
+    newUser.password = newPassword
 
     await newUser.save()
-    user = await UserModel.findOne({Email})
+    user = await UserModel.findOne({email})
     return user
   } catch (error) {
     return new Error(error)
   }
 }
 
-const Login = async (Email, Password) => {
+const Login = async (email, password) => {
   try {
-    const user = await UserModel.findOne({Email})
+    const user = await UserModel.findOne({email})
     if (!user){
       return {
         error: 'Email không tồn tại !',
@@ -53,32 +53,31 @@ const Login = async (Email, Password) => {
       }
     }
 
-    const result = await passwordHelper.ComparePassword(Password, user.Password)
+    const result = await passwordHelper.ComparePassword(password, user.password)
     if (result) {
-        if (!user.Confirmed){
+        if (!user.confirmed){
+            const newToken = await tokenHelper.GenerateToken(user)
 
-        const newToken = await tokenHelper.GenerateToken(user)
+            await mailHelper.sendMail(
+            '"KhuTro.Com" <khutro247@gmail.com>',
+            user.email,
+            "Xác thực tài khoản",
+            "Nhấp vào link dưới đây để xác thực tài khoản",
+            `
+                <b>Nhấp vào link dưới đây để xác thực tài khoản</b> <br/>
+                <a href= "http://localhost:3001/api/user/confirm/${newToken}"> http://localhost:3001/api/user/confirm/${newToken} </a>
+            `
+            )
 
-        await mailHelper.sendMail(
-          '"KhuTro.Com" <khutro247@gmail.com>',
-          user.Email,
-          "Xác thực tài khoản",
-          "Nhấp vào link dưới đây để xác thực tài khoản",
-          `
-            <b>Nhấp vào link dưới đây để xác thực tài khoản</b> <br/>
-            <a href= "http://localhost:3001/api/user/confirm/${newToken}"> http://localhost:3001/api/user/confirm/${newToken} </a>
-          `
-        )
-
-        return {
-          error: 'Hãy vào gmail để xác thực tài khoản',
-          link: `http://localhost:3001/api/user/confirm/${newToken}`
-        }
+            return {
+                error: 'Hãy vào gmail để xác thực tài khoản',
+                link: `http://localhost:3001/api/user/confirm/${newToken}`
+            }
         }
 
         const token = await tokenHelper.GenerateToken(user._id)
         return {
-            role : user.Role,
+            role : user.role,
             token
         }
     }
@@ -96,15 +95,15 @@ const Login = async (Email, Password) => {
 const ConfirmUser = async token => {
     try {
         const {payload} = await tokenHelper.DecodePayload(token)
-        const user = await UserModel.findOne({Email: payload.Email})
+        const user = await UserModel.findOne({email: payload.email})
 
-        if (user.Confirmed) return {
+        if (user.confirmed) return {
             error: {
                 message: 'Email đã được xác thực'
             }
         }
 
-        await UserModel.findByIdAndUpdate(payload._id, {Confirmed: true})
+        await UserModel.findByIdAndUpdate(payload._id, {confirmed: true})
         return {
             token
         }
@@ -113,7 +112,7 @@ const ConfirmUser = async token => {
     }
 }
 
-const ChangePassword = async (userId, Password, newPassword) => {
+const ChangePassword = async (userId, password, newPassword) => {
     try {
         const user = await userModel.findById(userId)
         if (!user) return {
@@ -122,14 +121,14 @@ const ChangePassword = async (userId, Password, newPassword) => {
             }
         }
 
-        const result = await passwordHelper.ComparePassword(Password, user.Password)
+        const result = await passwordHelper.ComparePassword(password, user.password)
         if (!result) return {
                 error: {
                     message: 'Mật khẩu hiện tại không chính xác !'
                 }
             }
         const newPasswordHashed = await passwordHelper.HashPassword(newPassword)
-        await user.updateOne({Password: newPasswordHashed})
+        await user.updateOne({password: newPasswordHashed})
         return {
             message: "Cập nhật mật khẩu thành công !"
         }
@@ -149,9 +148,9 @@ const ChangeInfo = async (userId, info) => {
         }
 
         await _user.updateOne({
-            FullName: info.FullName ? info.FullName : _user.FullName,
-            Address: info.Address ? info.Address : _user.Address,
-            PhoneNumber: info.PhoneNumber ? info.PhoneNumber : _user.PhoneNumber
+            fullName: info.fullName ? info.fullName : _user.fullName,
+            address: info.address ? info.address : _user.address,
+            phoneNumber: info.phoneNumber ? info.phoneNumber : _user.phoneNumber
         })
 
         return _user

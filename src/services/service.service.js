@@ -5,6 +5,12 @@ const _ = require('lodash')
 const CreateService = async (userId , service) => {
     try {
         const _services = await GetBlockServices(userId, service.block)
+        if (_services.error) return {
+            error: {
+                message: _services.error.message
+            }
+        }
+
         let _error = false
         _services.forEach(_service => {
             if (_service.nameService === service.nameService) {
@@ -37,6 +43,12 @@ const GetBlockServices = async (userId, blockId) => {
             _id: blockId,
             owner: userId
         })
+
+        if (!_block) return {
+            error:{
+                message: 'Khu trọ không tồn tại !'
+            }
+        }
 
         if (_block.error) return {
             error:{
@@ -87,6 +99,13 @@ const GetServiceById = async (userId, serviceId) => {
 const UpdateService = async (userId, service) => {
     try {
         const _services = await GetBlockServices(userId, service.block)
+        if (_services.error) return {
+            error: {
+                message: _services.error.message
+            }
+        }
+
+
         let _error = false
         _services.forEach(_service => {
             if (_service.nameService === service.nameService && _service._id.toString() !== service._id) {
@@ -108,7 +127,12 @@ const UpdateService = async (userId, service) => {
         }
 
         if (_service.block.toString() !== service.block){
-            const _oldBlock = await blockService.GetBlockById(userId, _service.block.toString())
+            const _oldBlock = await blockModel.findOne({
+                _id: _service.block.toString(),
+                isDeleted: false,
+                owner: userId
+            })
+
             if (_oldBlock.error) return {
                 error: {
                     message: _oldBlock.error.message
@@ -123,16 +147,22 @@ const UpdateService = async (userId, service) => {
             })
             await _service.save()
 
-
-            const oldServices = _.remove(_oldBlock.services, _service._id)
+            const oldServices = _.remove(_oldBlock.services, service._id)
             await _oldBlock.updateOne({services: oldServices})
             await _oldBlock.save()
+            console.log('oldServices', oldServices)
 
-            const _newBlock = await blockService.GetBlockById(userId, service.block)
+            const _newBlock = await blockModel.findOne({
+                _id: service.block.toString(),
+                isDeleted: false,
+                owner: userId
+            })
             await _newBlock.services.push(_service.id)
             await _newBlock.save()
+
             return "okk"
         }
+
         await _service.updateOne({
             nameService: service.nameService ? service.nameService : _service.nameService,
             price: service.price ? service.price : _service.price,
@@ -167,26 +197,25 @@ const DeleteService = async (userId, serviceId) => {
 
 const DeleteServices = async (userId, serviceIds) => {
     try {
-        let _error = null
-        serviceIds.forEach(async serviceId => {
-            let _service = await GetServiceById(userId, serviceId)
+        let error = null
+        for (let i =0; i < serviceIds.length; i++){
+            let _service = await GetServiceById(userId, serviceIds[i])
+            console.log("_service", _service)
             if (_service.error) {
-                _error = _service.error
-                return
+                error = _service.error
+                return {error} 
             }
-        })
+        }
 
-        if (_error) _error
-
-        serviceIds.forEach(async serviceId => {
-            let _service = await GetServiceById(userId, serviceId)
+        for (let i =0; i < serviceIds.length; i++){
+            let _service = await GetServiceById(userId, serviceIds[i])
             await _service.updateOne({
                 isDeleted: true
             })
             await _service.save()
-        })
-        
-        return serviceIds
+        }
+
+        return {error}
     } catch (error) {
         return new Error(error)
     }

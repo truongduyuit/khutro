@@ -6,7 +6,7 @@ const EMAIL_ACCOUNT = {
 
 const PORT = 3001
 const SECRET_KEY = "chungnguyentruongduy"
-const TOKEN_LIFE = "4h"
+const TOKEN_LIFE = "11h"
 
 const USER_ROLE_ENUM = {
     ALL: "all",

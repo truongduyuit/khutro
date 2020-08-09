@@ -1,8 +1,5 @@
 const blockService = require('./block.service')
-const _ = require('lodash');
-const {isEmpty} = require('lodash');
-const configs = require('../../configs/app.config')
-
+const {isEmpty} = require('lodash')
 const CreateBlock = async (req, res, next) => {
     try {
         const {userId} = req
@@ -32,6 +29,10 @@ const GetBlocksOwner = async (req, res, next) => {
             error: {
                 message: result.error
             }
+        })
+
+        if (isEmpty(result)) res.status(200).json({
+            message: 'Bạn chưa có khu trọ nào !'
         })
 
         return res.status(200).json({
@@ -111,7 +112,7 @@ const DeleteBlock = async (req, res, next) => {
         })
 
         return res.status(200).json({
-            message: 'Xóa khu trọ thành công'
+            message: 'Xóa khu trọ thành công !'
         })
     } catch (error) {
         return next(error)
@@ -121,18 +122,7 @@ const DeleteBlock = async (req, res, next) => {
 const DeleteBlocks = async (req, res, next) => {
     try {
         const {userId} = req
-        const idBlockQuery = req.query._id
         const blockIdBody = req.body._ids
-        
-        let newIdBlockQuery
-        if (Array.isArray(idBlockQuery)) newIdBlockQuery = idBlockQuery
-        else newIdBlockQuery = [idBlockQuery]
-
-        if (!_.isEqual(idBlockQuery, blockIdBody)) return res.status(500).json({
-                error: {
-                    message: 'Mã khu trọ không trùng khớp'
-                }
-            })
 
         const result = await blockService.DeleteBlocks(userId, blockIdBody)
         if (result.error) return res.status(500).json({

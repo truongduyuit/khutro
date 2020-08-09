@@ -18,12 +18,11 @@ const AuthenticateRoleJWT = roles => {
                 })
 
                 const user = await userService.GetUserById(userId.payload)
-
                 let error = false
 
                 if (roles.indexOf(configs.USER_ROLE_ENUM.ALL) === -1)
                 {
-                    if (roles.indexOf(user.Role) === -1) {
+                    if (roles.indexOf(user.role) === -1) {
                         error = true
                     }
                 }
