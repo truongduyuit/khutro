@@ -5,6 +5,7 @@ const CreateService = async (req, res, next) => {
     const _service = req.body
 
     const _result = await serviceService.CreateService(userId, _service)
+    console.log('_result', _result)
     if (_result.error) return res.status(500).json({
         error: {
             message: _result.error.message

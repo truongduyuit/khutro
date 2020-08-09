@@ -6,6 +6,12 @@ const blockModel = require('../blocks/block.model')
 const CreateRoom = async (userId, room) => {
     try {
         const _rooms = await GetBlockRooms(userId, room.block)
+        if(_.isEmpty(_rooms)) return {
+            error: {
+                message: 'Khu trọ không tồn tại !'
+            }
+        }
+
         if (_rooms.error) return {
             error:{
                 message: _rooms.error.message
@@ -41,8 +47,15 @@ const GetBlockRooms = async (userId, blockId) => {
     try {
         const _block = await blockModel.findOne({
             _id: blockId,
-            owner: userId
+            owner: userId,
+            isDeleted: false
         })
+
+        if (!_block) return {
+            error:{
+                message: 'Khu trọ không tồn tại !'
+            }
+        }
 
         if (_block.error) return {
             error:{
@@ -66,8 +79,7 @@ const GetBlockRooms = async (userId, blockId) => {
 
 const GetRoomById = async (userId, roomId) => {
     try {
-        const _room = await roomModel.findOne({_id: roomId}).populate('block')
-
+        const _room = await roomModel.findOne({_id: roomId, isDeleted: false}).populate('block')
         if (!_room) return {
             error:{
                 message: 'Phòng không tồn tại !'
@@ -89,6 +101,12 @@ const GetRoomById = async (userId, roomId) => {
 const UpdateRoom = async (userId, room) => {
     try {
         const _rooms = await GetBlockRooms(userId, room.block)
+        if (_rooms.error) return {
+            error:{
+                message: _rooms.error.message
+            }
+        }
+
         let _error = false
         _rooms.forEach(_room => {
             if (_room.nameRoom === room.nameRoom && _room._id.toString() !== room._id) {
@@ -164,15 +182,10 @@ const UpdateRoom = async (userId, room) => {
 const DeleteRoom = async (userId, roomId) => {
     try {
         const _room = await GetRoomById(userId, roomId)
+
         if (_room.error) return {
             error:{
                 message: _room.error.message
-            }
-        }
-
-        if (userId !== _room.block.Owner.toString()) return {
-            error:{
-                message: 'Phòng không phải của bạn'
             }
         }
 
@@ -189,17 +202,17 @@ const DeleteRoom = async (userId, roomId) => {
 
 const DeleteRooms = async (userId, roomIds) => {
     try {
-        roomIds.forEach(async roomId => {
-            let _room = await GetRoomById(userId, roomId)
-            if (_room.error) return {
-                error:{
-                    message: _room.error.message
-                }
+        let error = null
+        for (let i =0; i < roomIds.length; i++){
+            let _room = await GetRoomById(userId, roomIds[i])
+            if (_room.error) {
+                error = _room.error
+                return {error}
             }
 
             if (userId !== _room.block.owner.toString()) return {
                 error:{
-                    message: 'Phòng không phải của bạn'
+                    message: 'Phòng không phải của bạn !'
                 }
             }
 
@@ -207,9 +220,8 @@ const DeleteRooms = async (userId, roomIds) => {
                 isDeleted: true
             })
             await _room.save()
-        })
-
-        return "ok"
+        }
+        return {error}
     } catch (error) {
         return new Error(error)
     }

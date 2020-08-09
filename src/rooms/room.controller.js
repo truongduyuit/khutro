@@ -115,10 +115,11 @@ const DeleteRooms = async (req, res, next) => {
         const {userId} = req
         const {_ids} = req.body
 
-        const result = await roomService.DeleteRooms(userId, _ids)
-        if (result.error) return res.status(500).json({
+        const _result = await roomService.DeleteRooms(userId, _ids)
+        console.log("con", _result)
+        if (_result.error) return res.status(500).json({
             error: {
-                message: result.error.message
+                message: _result.error.message
             }
         })
 

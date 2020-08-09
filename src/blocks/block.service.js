@@ -107,12 +107,18 @@ const UpdateBlock = async (userId, block) =>{
 const DeleteBlock = async (userId, blockId) => {
     try {
         const _block = await blockModel.findById(blockId)
+        if (!_block) return {
+            error: {
+                message: 'Khu trọ không tồn tại !'
+            }
+        }
+
         if (userId !== _block.owner.toString()) return {
             error: {
                 message: 'Khu trọ không phải của bạn !'
             }
         }
-        
+
         await roomService.DeleteRooms(userId, _block.rooms)
         await serviceService.DeleteServices(userId, _block.services)
         await _block.updateOne({
@@ -128,9 +134,12 @@ const DeleteBlock = async (userId, blockId) => {
 
 const DeleteBlocks = async (userId, blockIds) => {
     try {
-
         const _blocks = await blockModel.find({owner: userId})
-
+        if (_.isEmpty(_blocks)) return {
+            error: {
+                message: 'Khu trọ không tồn tại !'
+            }
+        }
         let _error = true
         _blocks.forEach(block => {
             if (_.indexOf(blockIds, block._id.toString()) === -1){
@@ -141,7 +150,7 @@ const DeleteBlocks = async (userId, blockIds) => {
 
         if (_error) return {
             error: {
-                message: 'Danh sách mã khu trọ không đúng'
+                message: 'Danh sách mã khu trọ không đúng !'
             }
         }
 

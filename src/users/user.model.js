@@ -3,32 +3,30 @@ const {Schema} = mongoose
 const configs = require('../../configs/app.config')
 
 const schema = new Schema({
-  Email: {
+  email: {
     type: String,
-    unique: true,
-    required: true
+    unique: true
   },
-  Password: {
-    type: String,
-    required: true
+  password: {
+    type: String
   },
-  Role: {
+  role: {
     type: String,
     enum: configs.USER_ROLES,
     default: "owner"
   },
-  Confirmed: {
+  confirmed: {
     type: Boolean,
     default: false
   },
-  FullName: String,
-  Address: String,
-  PhoneNumber: String,
-  DateJoined: {
+  fullName: String,
+  address: String,
+  phoneNumber: String,
+  dateJoined: {
     type: Date,
     default: Date.now()
   },
-  Blocks:[{
+  blocks:[{
       type: Schema.Types.ObjectId,
       ref: 'block'
   }]

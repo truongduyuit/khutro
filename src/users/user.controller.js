@@ -2,8 +2,8 @@ const userService = require('./user.service')
 
 const Register = async (req, res, next) => {
   try {
-    const {Email, Password} = req.body
-    const user = await userService.Register(Email, Password)
+    const {email, password} = req.body
+    const user = await userService.Register(email, password)
 
     if (user.error) return res.status(500).json({
       error: user.error
@@ -20,8 +20,8 @@ const Register = async (req, res, next) => {
 
 const Login = async (req, res, next) => {
   try {
-    const {Email, Password} = req.body
-    const result = await userService.Login(Email, Password)
+    const {email, password} = req.body
+    const result = await userService.Login(email, password)
 
     if (result.error){
       return res.status(500).json({
@@ -66,12 +66,14 @@ const ChangePassword = async (req, res, next) => {
         const {userId} = req
         const {oldPassword, newPassword} = req.body
 
-        const result = await userService.ChangePassword(userId, oldPassword, newPassword)
-        if (result.error) return res.status(200).json({
-           error: {
-                message: result.error.message
-           }
-        })
+        if (oldPassword !== newPassword){
+            const result = await userService.ChangePassword(userId, oldPassword, newPassword)
+            if (result.error) return res.status(200).json({
+                error: {
+                        message: result.error.message
+                }
+            })
+        }
         return res.status(200).json({
             message: 'Cập nhật mật khẩu thành công !',
         })
