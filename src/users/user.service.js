@@ -1,33 +1,34 @@
-const UserModel = require('./user.model')
 const passwordHelper = require('../../helpers/password.helper')
 const mailHelper = require('../../helpers/mail.helper')
 const tokenHelper = require('../../helpers/token.helper')
+
 const userModel = require('./user.model')
+
 const Register = async (email, password) => {
   try {
     if (password.length < 6)
         return {
             error: {
-                message : 'Mật khẩu phải tối thiếu 6 ký tự'
+                message : 'Mật khẩu phải tối thiếu 6 ký tự !'
             }
         }
     if (password.length >= 32)
         return {
             error: {
-                message : 'Mật khẩu tối đa 32 ký tự'
+                message : 'Mật khẩu tối đa 32 ký tự !'
             }
         }
 
-    let user = await UserModel.findOne({email})
+    let user = await userModel.findOne({email})
     if (user) {
         return {
             error: {
-                message: 'Tài khoản đã tồn tại'
+                message: 'Email đã được sử dụng !'
             }
         }
     }
 
-    const newUser = new UserModel({
+    const newUser = new userModel({
       email,
       password
     })
@@ -36,7 +37,7 @@ const Register = async (email, password) => {
     newUser.password = newPassword
 
     await newUser.save()
-    user = await UserModel.findOne({email})
+    user = await userModel.findOne({email})
     return user
   } catch (error) {
     return new Error(error)
@@ -45,7 +46,7 @@ const Register = async (email, password) => {
 
 const Login = async (email, password) => {
   try {
-    const user = await UserModel.findOne({email})
+    const user = await userModel.findOne({email})
     if (!user){
       return {
         error: 'Email không tồn tại !',
@@ -95,7 +96,7 @@ const Login = async (email, password) => {
 const ConfirmUser = async token => {
     try {
         const {payload} = await tokenHelper.DecodePayload(token)
-        const user = await UserModel.findOne({email: payload.email})
+        const user = await userModel.findOne({email: payload.email})
 
         if (user.confirmed) return {
             error: {
@@ -103,7 +104,7 @@ const ConfirmUser = async token => {
             }
         }
 
-        await UserModel.findByIdAndUpdate(payload._id, {confirmed: true})
+        await userModel.findByIdAndUpdate(payload._id, {confirmed: true})
         return {
             token
         }
@@ -139,7 +140,7 @@ const ChangePassword = async (userId, password, newPassword) => {
 
 const ChangeInfo = async (userId, info) => {
     try {
-        const _user =await UserModel.findById(userId)
+        const _user =await userModel.findById(userId)
 
         if (!_user) return {
             error: {
@@ -165,7 +166,7 @@ const ChangeInfo = async (userId, info) => {
 
 const GetUserById = async userId => {
     try {
-        const user = await UserModel.findById(userId)
+        const user = await userModel.findById(userId)
 
         if (!user) return {
             error: {

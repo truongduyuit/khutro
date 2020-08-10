@@ -18,13 +18,13 @@ const CreateBlock = async (userId, block) =>{
         const newBlock = new blockModel(block)
         newBlock.owner = userId
 
+        const _user = await userModel.findById(userId)
+        _user.blocks.push(newBlock._id)
+
         const result = await newBlock.save()
         if (!result) return {
             error: result.error
         }
-
-        const _user = await userModel.findById(userId)
-        _user.blocks.push(newBlock._id)
         await _user.save()
 
         return newBlock
@@ -123,6 +123,7 @@ const DeleteBlock = async (userId, blockId) => {
 
         await roomService.DeleteRooms(userId, _block.rooms)
         await serviceService.DeleteServices(userId, _block.services)
+        
         await _block.updateOne({
             isDeleted: true
         })
