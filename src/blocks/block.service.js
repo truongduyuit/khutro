@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const blockModel = require('./block.model')
+const userModel = require('../users/user.model')
 const roomService = require('../rooms/room.service')
 const serviceService = require('../services/service.service')
 const userService = require('../users/user.service')
@@ -22,8 +23,9 @@ const CreateBlock = async (userId, block) =>{
             error: result.error
         }
 
-        user.Blocks.push(newBlock._id)
-        await user.save()
+        const _user = await userModel.findById(userId)
+        _user.blocks.push(newBlock._id)
+        await _user.save()
 
         return newBlock
     } catch (error) {
