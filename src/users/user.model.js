@@ -30,12 +30,16 @@ const schema = new Schema({
     default: Date.now()
   },
   blocks:[{
-      type: Schema.Types.ObjectId,
-      ref: 'block',
+    type: Schema.Types.ObjectId,
+    ref: 'block',
   }],
   room: {
-      type: Schema.Types.ObjectId,
-      ref: 'room',
+    type: Schema.Types.ObjectId,
+    ref: 'room',
+  },
+  outOfDay: {
+    type: Date,
+    default: Date.now()
   }
 })
 
