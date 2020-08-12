@@ -24,9 +24,15 @@ const CreateCustomer = async (user, customer) => {
                 block: {$in: _userBlocks}
             })
 
-
             for (let i =0; i < _roomsOwner.length; ++i){
                 if (_roomsOwner[i]._id.toString() === customer.room){
+
+                    if (_roomsOwner[i].maxPeople === _roomsOwner[i].customers.length) return {
+                        error: {
+                            message: "Phòng đã đủ người !"
+                        }
+                    }
+
                     const newCustomer = new userModel({
                         email: customer.email ? customer.email : '',
                         role: USER_ROLE_ENUM.CUSTOMER,
