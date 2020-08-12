@@ -1,6 +1,5 @@
 const passwordHelper = require('../../helpers/password.helper')
 const mailHelper = require('../../helpers/mail.helper')
-const smsHelper = require('../../helpers/sms.helper')
 const tokenHelper = require('../../helpers/token.helper')
 
 const userModel = require('./user.model')
