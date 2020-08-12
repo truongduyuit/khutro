@@ -150,7 +150,6 @@ const UpdateService = async (userId, service) => {
             const oldServices = _.remove(_oldBlock.services, service._id)
             await _oldBlock.updateOne({services: oldServices})
             await _oldBlock.save()
-            console.log('oldServices', oldServices)
 
             const _newBlock = await blockModel.findOne({
                 _id: service.block.toString(),

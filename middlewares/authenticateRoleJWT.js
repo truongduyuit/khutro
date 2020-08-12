@@ -35,6 +35,7 @@ const AuthenticateRoleJWT = roles => {
 
                 console.log('Xác thực thành công !')
                 req.userId = userId.payload
+                req.user = user
                 next()
             })
         }else {

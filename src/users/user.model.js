@@ -4,8 +4,7 @@ const configs = require('../../configs/app.config')
 
 const schema = new Schema({
   email: {
-    type: String,
-    unique: true
+    type: String
   },
   password: {
     type: String
@@ -22,14 +21,26 @@ const schema = new Schema({
   fullName: String,
   address: String,
   phoneNumber: String,
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
   dateJoined: {
     type: Date,
     default: Date.now()
   },
   blocks:[{
-      type: Schema.Types.ObjectId,
-      ref: 'block'
-  }]
+    type: Schema.Types.ObjectId,
+    ref: 'block',
+  }],
+  room: {
+    type: Schema.Types.ObjectId,
+    ref: 'room',
+  },
+  outOfDay: {
+    type: Date,
+    default: Date.now()
+  }
 })
 
 module.exports = mongoose.model('user', schema)

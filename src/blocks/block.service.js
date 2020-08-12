@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const blockModel = require('./block.model')
+const userModel = require('../users/user.model')
 const roomService = require('../rooms/room.service')
 const serviceService = require('../services/service.service')
 const userService = require('../users/user.service')
@@ -17,13 +18,14 @@ const CreateBlock = async (userId, block) =>{
         const newBlock = new blockModel(block)
         newBlock.owner = userId
 
+        const _user = await userModel.findById(userId)
+        _user.blocks.push(newBlock._id)
+
         const result = await newBlock.save()
         if (!result) return {
             error: result.error
         }
-
-        user.Blocks.push(newBlock._id)
-        await user.save()
+        await _user.save()
 
         return newBlock
     } catch (error) {
@@ -121,6 +123,7 @@ const DeleteBlock = async (userId, blockId) => {
 
         await roomService.DeleteRooms(userId, _block.rooms)
         await serviceService.DeleteServices(userId, _block.services)
+        
         await _block.updateOne({
             isDeleted: true
         })
