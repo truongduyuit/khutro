@@ -63,6 +63,24 @@ const GetRoomById = async (req, res, next) =>{
     }
 }
 
+const GetRoomByCustomer = async (req, res, next) => {
+    try {
+        const {user} = req
+
+        const _result = await roomService.GetRoomByCustomer(user)
+        if (_result.error) return res.status(500).json({
+            error: _result.error.message
+        })
+
+        return res.status(200).json({
+            message: 'Lấy danh sách phòng thành công !',
+            rooms: _result
+        })
+    } catch (error) {
+        return next(error)
+    }
+}
+
 const UpdateRoom = async (req, res, next) => {
     try {
         const {userId} = req
@@ -135,6 +153,7 @@ module.exports = {
     CreateRoom,
     GetBlockRooms,
     GetRoomById,
+    GetRoomByCustomer,
     UpdateRoom,
     DeleteRoom,
     DeleteRooms

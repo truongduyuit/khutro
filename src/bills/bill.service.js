@@ -65,7 +65,24 @@ const CreateBill = async (user, bill) => {
 
 const GetBillByOwner = async (user) => {
     try {
-        const _bills = await billModel.find({owner: user._id.toString(), isDeleted: false}).populate('customers').populate('room').populate('service-detail')
+        const _bills = await billModel.find({owner: user._id.toString(), isDeleted: false})
+                        .populate('customers').populate('room')
+                        .populate({path: 'services', populate: {path: 'service'}})
+        if (!_bills) return {
+            error: {
+                message: 'Lấy danh sách hóa đơn thất bại !'
+            }
+        }
+
+        return _bills
+    } catch (error) {
+        return new Error(error)
+    }
+}
+
+const GetBillByCustomer = async (user) => {
+    try {
+        const _bills = await billModel.find({customers: {$elemMatch: {$eq: user._id}}, isDeleted: false}).populate('room')
         if (!_bills) return {
             error: {
                 message: 'Lấy danh sách hóa đơn thất bại !'
@@ -211,6 +228,7 @@ const DeleteBill = async (user, billId) => {
 module.exports = {
     CreateBill,
     GetBillByOwner,
+    GetBillByCustomer,
     GetBillByRoom,
     GetBillById,
     UpdateBill,

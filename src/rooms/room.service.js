@@ -95,6 +95,24 @@ const GetRoomById = async (userId, roomId) => {
     }
 }
 
+const GetRoomByCustomer = async (user) => {
+    try {
+        const _rooms = await roomModel.find({
+            customers: {$elemMatch: {$eq: user._id}},
+            isDeleted: false
+        }).populate('customers')
+
+        if (!_rooms) return {
+            error: {
+                message: 'Lấy danh sách phòng thất bại !'
+            }
+        }
+
+        return _rooms
+    } catch (error) {
+        return new Error(error)
+    }
+}
 const UpdateRoom = async (userId, room) => {
     try {
         const _rooms = await GetBlockRooms(userId, room.block)
@@ -224,6 +242,7 @@ module.exports = {
     CreateRoom,
     GetBlockRooms,
     GetRoomById,
+    GetRoomByCustomer,
     UpdateRoom,
     DeleteRoom,
     DeleteRooms

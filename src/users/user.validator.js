@@ -20,8 +20,14 @@ const UserChangInfoValidator = joi.object({
     phoneNumber: joi.string().length(10),
 })
 
+const CustomerLogin = joi.object({
+    email: joi.string().required().email(),
+    password: joi.string().pattern(new RegExp('^[a-zA-Z0-9]{6,32}$')),
+})
+
 module.exports = {
     UserValidator,
     UserChangPasswordValidator,
-    UserChangInfoValidator
+    UserChangInfoValidator,
+    CustomerLogin
 }

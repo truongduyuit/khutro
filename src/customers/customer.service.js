@@ -9,7 +9,7 @@ const CreateCustomer = async (user, customer) => {
     try {
             if (customer.email) {
                 let email = customer.email
-                let user = await userModel.findOne({email})
+                let user = await userModel.findOne({email, role: 'owner'})
                 if (user) {
                     return {
                         error: {

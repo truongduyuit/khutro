@@ -1,5 +1,6 @@
 const passwordHelper = require('../../helpers/password.helper')
 const mailHelper = require('../../helpers/mail.helper')
+const smsHelper = require('../../helpers/sms.helper')
 const tokenHelper = require('../../helpers/token.helper')
 
 const userModel = require('./user.model')
@@ -85,7 +86,7 @@ const Login = async (email, password) => {
 
     return {
         error: {
-            message: 'Tài khoản hoặc mật khẩu không chính xác !'
+            message: 'Email hoặc mật khẩu không chính xác !'
         }
     }
   } catch (error) {
@@ -180,11 +181,72 @@ const GetUserById = async userId => {
     }
 }
 
+const CustomerLogin = async (payload) => {
+    try {
+        const _user = await userModel.findOne({
+            email: payload.email,
+            role: 'customer'
+        })
+
+        if (!_user) return {
+            error: {
+                message : 'Email không tồn tại !'
+            }
+        }
+
+        if (!payload.password) {
+            if (!_user.password) {
+
+                const newPassword = (Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000).toString()
+                await mailHelper.sendMail(
+                '"KhuTro.Com" <khutro247@gmail.com>',
+                `${payload.email}`,
+                "Xác thực tài khoản",
+                "Nhấp vào link dưới đây để xác thực tài khoản",
+                `
+                    <span>Mật khẩu đăng nhập <b>KhuTro.Com</b> của bạn là: <b>${newPassword}</b></span> <br/>
+                `
+                )
+
+                await _user.updateOne({
+                    password: await passwordHelper.HashPassword(newPassword),
+                    confirmed: true
+                })
+                await _user.save()
+
+                return {
+                    error: {
+                        message: 'Vào mail để nhận password mới !'
+                    }
+                }
+            }
+
+            return {
+                error: {
+                    message: 'Bạn đã có mật khẩu đăng nhập !'
+                }
+            }
+        }
+
+        const _result = await Login(payload.email, payload.password)
+        if (_result.error) return {
+            error: {
+                message: _result.error.message
+            }
+        }
+
+        return _result
+    } catch (error) {
+        return new Error(error)
+    }
+}
+
 module.exports = {
   Register,
   Login,
   ConfirmUser,
   ChangePassword,
   ChangeInfo,
-  GetUserById
+  GetUserById,
+  CustomerLogin
 }

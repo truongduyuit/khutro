@@ -101,10 +101,32 @@ const ChangeInfo = async (req, res, next) => {
     }
 }
 
+const CustomerLogin = async (req, res, next) => {
+    try {
+        const payload = req.body
+
+        const _result = await userService.CustomerLogin(payload)
+        console.log('_result', _result)
+        if (_result.error) return res.status(500).json({
+            error: {
+                message: _result.error.message
+            }
+        })
+
+        return res.status(200).json({
+            message: 'Đăng nhập thành công !',
+            _result
+        })
+    } catch (error) {
+        return next(error)
+    }
+}
+
 module.exports = {
   Register,
   Login,
   ConfirmUser,
   ChangePassword,
-  ChangeInfo
+  ChangeInfo,
+  CustomerLogin
 }
