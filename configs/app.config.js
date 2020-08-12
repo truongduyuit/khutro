@@ -1,3 +1,4 @@
+require('dotenv').config()
 const DATABASE_HOST = 'mongodb://localhost/khutro'
 const EMAIL_ACCOUNT = {
   email: 'khutro247@gmail.com',

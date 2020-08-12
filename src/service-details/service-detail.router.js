@@ -12,7 +12,7 @@ const {serviceDetailValidator, ServiceDetailByRoomAndMonthValidator } = require(
 const serviceDetailController = require('./service-detail.controller')
 router.get('', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateQueryParam(idValidator),serviceDetailController.GetServiceDetailById)
         .get('/owner-service-details', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]),serviceDetailController.GetServiceDetailByOwner)
-        .get('/room-service-details', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateQueryParam(ServiceDetailByRoomAndMonthValidator),serviceDetailController.GetServiceDetailByRoomAndMonth)
+        .get('/room-service-details', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER, USER_ROLE_ENUM.CUSTOMER]), ValidateQueryParam(ServiceDetailByRoomAndMonthValidator),serviceDetailController.GetServiceDetailByRoomAndMonth)
         .post('/create', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateBody(serviceDetailValidator), serviceDetailController.CreateServiceDetail)
         .put('/update', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateQueryParam(idValidator), ValidateBody(serviceDetailValidator), serviceDetailController.UpdateServiceDetail)
         .delete('/delete', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateQueryParam(idValidator), serviceDetailController.DeleteServiceDetail)

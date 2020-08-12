@@ -41,6 +41,25 @@ const GetBillByOwner = async (req, res, next) => {
     }
 }
 
+const GetBillByCustomer = async (req, res, next) => {
+    try {
+        const {user} = req
+
+        const _result = await billService.GetBillByCustomer(user)
+        if (_result.error) return res.status(500).json({
+            error: {
+                message : _result.error.message
+            }
+        })
+
+        return res.status(200).json({
+            message: 'Lấy danh sách hóa đơn thành công !',
+            bills: _result
+        })
+    } catch (error) {
+        return next(error)
+    }
+}
 const GetBillByRoom = async (req, res, next) => {
     try {
         const {user} = req
@@ -133,6 +152,7 @@ const DeleteBill = async (req, res, next) => {
 module.exports = {
     CreateBill,
     GetBillByOwner,
+    GetBillByCustomer,
     GetBillByRoom,
     GetBillById,
     UpdateBill,

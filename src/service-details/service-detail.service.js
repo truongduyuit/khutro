@@ -1,6 +1,11 @@
+const {USER_ROLE_ENUM} = require('../../configs/app.config')
+
 const serviceDetailModel = require('./service-detail.model')
 const roomService = require('../rooms/room.service')
 const serviceService = require('../services/service.service')
+const userModel = require('../users/user.model')
+const _ = require('lodash')
+
 const CreateServiceDetail = async (user, serviceDetail) => {
     try {
         const _room = await roomService.GetRoomById(user._id.toString(), serviceDetail.room)
@@ -28,13 +33,42 @@ const CreateServiceDetail = async (user, serviceDetail) => {
 
 const GetServiceDetailByRoomAndMonth = async (user, roomId, month, year) => {
     try {
+        if (user.role === USER_ROLE_ENUM.CUSTOMER){
+            const _customers = await userModel.find({email: user.email})
+            if (_.isEmpty(_customers)) return {
+                error: {
+                    message : 'Lấy danh sách chi tiết dịch vụ thất bại !'
+                }
+            }
+
+            let _rooms = []
+            for (let i =0 ; i < _customers.length; ++i){
+                if (_.indexOf(_rooms, _customers[i].room._id) === -1) {
+                    _rooms.push(_customers[i].room._id)
+                }
+            }
+
+            const _serviceDetails = await serviceDetailModel.find({
+                room: {$in : _rooms}
+            }).populate({path: 'room', populate: {path: 'customers'}}).populate('service')
+            if (_.isEmpty(_serviceDetails)) return {
+                error: {
+                    message : 'Lấy danh sách chi tiết dịch vụ thất bại !'
+                }
+            }
+            return {
+                _rooms,
+                _serviceDetails
+            }
+        }
+
         if (roomId) {
             const _serviceDetails  = await serviceDetailModel.find({
                                         owner: user._id.toString(),
                                         ofMonth: {$lt : new Date(year, month, 1), $gte : new Date(year, month - 1 , 1)},
                                         room: roomId,
                                         isDeleted: false
-                                    }).populate('room').populate('service')
+                                    }).populate({path: 'room', populate: {path: 'customers'}}).populate('service')
 
             if (!_serviceDetails) return {
                 error: {
@@ -48,7 +82,7 @@ const GetServiceDetailByRoomAndMonth = async (user, roomId, month, year) => {
                                     owner: user._id.toString(),
                                     ofMonth: {$lt : new Date(year, month, 1), $gte : new Date(year, month - 1 , 1)},
                                     isDeleted: false
-                                }).populate('room').populate('service')
+                                }).populate({path: 'room', populate: {path: 'customers'}}).populate('service')
 
         if (!_serviceDetails) return {
             error: {
