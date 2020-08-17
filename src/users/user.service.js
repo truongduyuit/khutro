@@ -38,6 +38,12 @@ const Register = async (email, password) => {
 
     await newUser.save()
     user = await userModel.findOne({email})
+    if (!user) return {
+        error: {
+            message: 'Đăng ký tài khoản thất bại !'
+        }
+    }
+
     return user
   } catch (error) {
     return new Error(error)

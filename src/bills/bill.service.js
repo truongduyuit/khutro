@@ -1,228 +1,235 @@
 const _ = require('lodash')
 
+const {throwError} = require('../../helpers/responseToClient.helper')
+const Code = require('./bill.code')
+
 const billModel = require('./bill.model')
-const roomService = require('../rooms/room.service')
-const customerService = require('../customers/customer.service')
-const serviceDetailService = require('../service-details/service-detail.service')
 const userModel = require('../users/user.model')
+const serviceDetailModel = require('../service-details/service-detail.model')
 
-const CreateBill = async (user, bill) => {
+const CreateBill = async (user, bill, session) => {
     try {
-        if (_.isEmpty(bill.customers)) return {
-            error: {
+        if (_.isEmpty(bill.customers)) {
+            return throwError({
+                statusCode: 500,
+                errorCode: Code.BILL_MUST_LEAST_1_CUSTOMER,
                 message: 'Hóa đơn phải tạo cho ít nhất 1 khách hàng nào đó !'
-            }
+            })
         }
-
-        let error = null
         for (let i =0; i < bill.customers.length; ++i) {
-            let _customer = await customerService.GetCustomerById(user, bill.customers[i])
-            if (_customer.error) {
-                error = _customer.error
-                return {error}
-            }
+            let user = await userModel.findOne({
+                _id: bill.customers[i],
+                room: bill.room
+            })
+
+            if (!user) return throwError({
+                statusCode: 500,
+                errorCode: Code.CUSTOMER_NOT_IN_ROOM,
+                message: 'Khách hàng không đúng !'
+            })
         }
         for (let i =0; i < bill.services.length; ++i) {
-            let _customer = await serviceDetailService.GetServiceDetailById(user._id, bill.services[i])
-            if (_customer.error) {
-                error = _customer.error
-                return {error}
-            }
+            let service = await serviceDetailModel.findOne({
+                _id: bill.services[i],
+                room: bill.room
+            })
+
+            if (!service) return throwError({
+                statusCode: 500,
+                errorCode: Code.SERVICE_DETAIL_NOT_OF_ROOM,
+                message: 'Chi tiêt dịch vụ không đúng !'
+            })
         }
-        if (error) return {error}
 
-        const _newBill = new billModel(bill)
-        _newBill.owner = user._id
-
+        const newBill = new billModel(bill)
         if (bill.isPay === true) {
-            _newBill.dateCheckout = Date.now()
-
+            newBill.dateCheckout = Date.now()
             if (bill.roomTotalAmount !== 0){
-                const quantityCustomers = bill.customers.length
-                let quantityMonths = bill.roomTotalAmount / bill.roomPrice
+                if (bill.roomTotalAmount % bill.roomPrice !== 0) return throwError({
+                    statusCode: 500,
+                    errorCode: Code.ROOM_TOTAL_AMOUNT_FALSE,
+                    message: 'Tổng tiền phòng phải là bội số của giá phòng'
+                })
 
-                if (quantityCustomers > 1) {
-                    quantityMonths /= quantityCustomers
-                }
+                const quantityCustomers = bill.customers.length
+                const quantityMonths = bill.roomTotalAmount / bill.roomPrice / quantityCustomers
 
                 for (let i = 0; i < bill.customers.length; ++i){
-                    let _customer = await userModel.findById(bill.customers[i])
+                    const customer = await userModel.findById(bill.customers[i])
 
-                    await _customer.updateOne({
-                        outOfDay: new Date( _customer.outOfDay.setMonth(_customer.outOfDay.getMonth() + quantityMonths))
-                    })
-                    await _customer.save()
+                    const newMonth = customer.outOfDay.getMonth() + quantityMonths
+                    const newOutOfDay = new Date(customer.outOfDay.setMonth(newMonth))
+                    await customer.updateOne({
+                        outOfDay: newOutOfDay
+                    }, {session})
                 }
+            }
+
+            for (let i =0 ; i < bill.services.length; ++i){
+                await serviceDetailModel.findByIdAndUpdate(bill.services[i], {isPay: true}, {session})
             }
         }
 
-        await _newBill.save()
-        return _newBill
+        newBill.owner = user._id
+        await newBill.save({session})
+        return newBill
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.CREATE_BILL_FAILED
+        return throwError(error)
     }
 }
 
 const GetBillByOwner = async (user) => {
     try {
-        const _bills = await billModel.find({owner: user._id.toString(), isDeleted: false})
-                        .populate('customers').populate('room')
-                        .populate({path: 'services', populate: {path: 'service'}})
-        if (!_bills) return {
-            error: {
-                message: 'Lấy danh sách hóa đơn thất bại !'
-            }
-        }
-
-        return _bills
+        const bills = await billModel.find({owner: user._id}).populate('room')
+        return bills
     } catch (error) {
-        return new Error(error)
+        return throwError({
+            statusCode: 500,
+            errorCode: Code.GET_BILLS_BY_OWNER_FAILED,
+            message: 'Lấy danh sách hóa đơn thất bại'
+        })
     }
 }
 
 const GetBillByCustomer = async (user) => {
     try {
-        const _bills = await billModel.find({customers: {$elemMatch: {$eq: user._id}}, isDeleted: false}).populate('room')
-        if (!_bills) return {
-            error: {
-                message: 'Lấy danh sách hóa đơn thất bại !'
-            }
-        }
-
-        return _bills
+        const bills = await billModel.find({customers: {$elemMatch: {$eq: user._id}}}).populate('room')
+        return bills
     } catch (error) {
-        return new Error(error)
+        return throwError({
+            statusCode: 500,
+            errorCode: Code.GET_BILLS_BY_CUSTOMER_FAILED,
+            message: 'Lấy danh sách hóa đơn thất bại'
+        })
     }
 }
 
 const GetBillByRoom = async (user, roomId) => {
     try {
-        const _bills = await billModel.find({
+        const bills = await billModel.find({
             owner: user._id,
-            room: roomId,
-            isDeleted: false
-        }).populate('customers').populate('room').populate('service-detail')
-        if (!_bills) return {
-            error: {
-                message: 'Lấy danh sách hóa đơn thất bại !'
-            }
-        }
+            room: roomId
+        }).populate('room')
 
-        return _bills
+        return bills
     } catch (error) {
-        return new Error(error)
+        return throwError({
+            statusCode: 500,
+            errorCode: Code.GET_BILLS_BY_ROOM_FAILED,
+            message: 'Lấy danh sách hóa đơn thất bại'
+        })
     }
 }
 
 const GetBillById = async (user, billId) => {
     try {
-        const _bill = await billModel.findOne({
+        const bill = await billModel.findOne({
             _id: billId,
-            owner: user._id,
-            isDeleted: false
+            owner: user._id
         }).populate('customers').populate('room').populate('service-detail')
-        if (!_bill) return {
-            error: {
-                message: 'Lấy thông hóa đơn thất bại !'
-            }
-        }
 
-        return _bill
+        return bill
     } catch (error) {
-        return new Error(error)
+        return throwError({
+            statusCode: 500,
+            errorCode: Code.GET_BILLS_BY_ID_FAILED,
+            message: 'Lấy thông tin hóa đơn thất bại'
+        })
     }
 }
 
-const UpdateBill = async (user, bill) => {
+const UpdateBill = async (user, newBill, session) => {
     try {
-        const _bill = await GetBillById(user, bill._id)
-        if (_bill.error) return {
-            error: {
-                message: _bill.error.message
-            }
-        }
+        if (newBill.isPay === false) return {}
 
-        if (_bill.isPay === true) return {
-            error: {
-                message: 'Không được chỉnh sửa hóa đơn đã thanh toán !'
-            }
-        }
+        const bill = await GetBillById(user, newBill._id)
+        if (bill.isPay === true) return throwError({
+            statusCode: 500,
+            errorCode: Code.CANNOT_EDIT_BILL_IS_PAID,
+            message: 'Không được chỉnh sửa hóa đơn đã thanh toán !'
+        })
 
-        if (bill.isPay === false) return {}
 
         if (bill.roomTotalAmount !== 0){
-            const quantityCustomers = bill.customers.length
-            let quantityMonths = bill.roomTotalAmount / bill.roomPrice
+            if (bill.roomTotalAmount % bill.roomPrice !== 0) return throwError({
+                    statusCode: 500,
+                    errorCode: Code.ROOM_TOTAL_AMOUNT_FALSE,
+                    message: 'Tổng tiền phòng phải là bội số của giá phòng'
+                })
 
-            if (quantityCustomers > 1) {
-                quantityMonths /= quantityCustomers
-            }
+            const quantityCustomers = bill.customers.length
+            const quantityMonths = bill.roomTotalAmount / bill.roomPrice / quantityCustomers
 
             for (let i = 0; i < bill.customers.length; ++i){
-                let _customer = await userModel.findById(bill.customers[i])
+                const customer = await userModel.findById(bill.customers[i])
 
-                await _customer.updateOne({
-                    outOfDay: new Date( _customer.outOfDay.setMonth(_customer.outOfDay.getMonth() + quantityMonths))
-                })
-                await _customer.save()
+                const newMonth = customer.outOfDay.getMonth() + quantityMonths
+                const newOutOfDay = new Date(customer.outOfDay.setMonth(newMonth))
+                await customer.updateOne({
+                    outOfDay: newOutOfDay
+                }, {session})
             }
         }
 
-        await _bill.updateOne({
+        for (let i =0 ; i < bill.services.length; ++i){
+            await serviceDetailModel.findByIdAndUpdate(bill.services[i], {isPay: true}, {session})
+        }
+
+        await bill.updateOne({
             isPay: true,
             dateCheckout: Date.now()
-        })
-        await _bill.save()
+        }, {session})
 
-        return {}
+        return bill
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.UPDATE_BILL_FAILED
+        return throwError(error)
     }
 }
 
-const DeleteBill = async (user, billId) => {
+const DeleteBill = async (user, billId, session) => {
     try {
-        const _bill = await GetBillById(user, billId)
-        if (_bill.error) return {
-            error: {
-                message: _bill.error.message
+        const bill = await GetBillById(user, billId)
+
+        if (bill.isPay === true) {
+            const checkOutTime = bill.dateCheckout.getTime();
+            const oneDay = 24*60*60*1000;
+            if (checkOutTime + oneDay < Date.now()) return throwError({
+                statusCode: 500,
+                errorCode: Code.CANNOT_DELETE_BILL_PAID_ONE_DAY,
+                message: 'Không thể xóa hóa đơn đã thanh toán sau 1 ngày !'
+            })
+
+
+            if (bill.roomTotalAmount !== 0){
+                const quantityCustomers = bill.customers.length
+                const quantityMonths = bill.roomTotalAmount / bill.roomPrice / quantityCustomers
+
+                for (let i = 0; i < bill.customers.length; ++i){
+                    const customer = await userModel.findById(bill.customers[i])
+
+                    const newMonth = customer.outOfDay.getMonth() - quantityMonths
+                    const newOutOfDay = new Date(customer.outOfDay.setMonth(newMonth))
+                    await customer.updateOne({
+                        outOfDay: newOutOfDay
+                    }, {session})
+                }
+            }
+
+            for (let i =0 ; i < bill.services.length; ++i){
+                await serviceDetailModel.findByIdAndUpdate(bill.services[i], {isPay: false}, {session})
             }
         }
 
-        if (_bill.isPay === true) {
-            if (new Date().setDate(_bill.dateCheckout.getDate()) + 1 <  Date.now()) return {
-                error: {
-                    message: 'Không thể xóa hóa đơn đã thanh toán sau 1 ngày !'
-                }
-            }
-
-            if (_bill.roomTotalAmount !== 0){
-                const quantityCustomers = _bill.customers.length
-                let quantityMonths = _bill.roomTotalAmount / _bill.roomPrice
-
-                if (quantityCustomers > 1) {
-                    quantityMonths /= quantityCustomers
-                }
-
-                for (let i = 0; i < _bill.customers.length; ++i){
-                    let _customer = await userModel.findById(_bill.customers[i])
-
-                    await _customer.updateOne({
-                        outOfDay: new Date( _customer.outOfDay.setMonth(_customer.outOfDay.getMonth() - quantityMonths))
-                    })
-                    await _customer.save()
-                }
-            }
-        }
-
-        await _bill.updateOne({
+        await bill.updateOne({
             isDeleted: true
-        })
-        await _bill.save()
+        }, {session})
 
-        return {}
+        return bill
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.DELETE_BILL_FAILED
+        return throwError(error)
     }
 }
 module.exports = {

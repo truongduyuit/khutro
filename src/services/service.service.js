@@ -1,222 +1,143 @@
-const serviceModel = require('./service.model')
-const blockModel = require('../blocks/block.model')
+const mongoose = require('mongoose')
 const _ = require('lodash')
 
-const CreateService = async (userId , service) => {
-    try {
-        const _services = await GetBlockServices(userId, service.block)
-        if (_services.error) return {
-            error: {
-                message: _services.error.message
-            }
-        }
+const {throwError} = require('../../helpers/responseToClient.helper')
+const Code = require('./service.code')
 
-        let _error = false
-        _services.forEach(_service => {
-            if (_service.nameService === service.nameService) {
-                _error = true
-                return
-            }
-        })
-        if (_error) return {
-            error: {
-                message: 'Tên dịch vụ đã tồn tại !'
+const blockModel = require('../blocks/block.model')
+const serviceModel = require('./service.model')
+
+const CreateService = async (user , service) => {
+    try {
+        const services = await GetBlockServices(user, service.block)
+        for (let i = 0; i < services.length; ++i) {
+            if (services[i].nameService === service.nameService){
+                return throwError({
+                    errorCode: Code.NAME_SERVICE_EXIST,
+                    message: 'Tên dịch vụ đã tồn tại !'
+                })
             }
         }
 
         const newService = new serviceModel(service)
         await newService.save()
 
-        const _block = await blockModel.findById(service.block)
-        _block.services.push(newService._id)
-        await _block.save()
+        const block = await blockModel.findById(service.block)
+        block.services.push(newService._id)
+        await block.save()
 
         return newService
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.CREATE_SERVICE_FAILED
+        return throwError(error)
     }
 }
 
-const GetBlockServices = async (userId, blockId) => {
+const GetBlockServices = async (user, blockId) => {
     try {
-        const _block = await blockModel.findOne({
+        const block = await blockModel.findOne({
             _id: blockId,
-            owner: userId
+            owner: user._id
         })
 
-        if (!_block) return {
-            error:{
-                message: 'Khu trọ không tồn tại !'
-            }
-        }
-
-        if (_block.error) return {
-            error:{
-                message: _block.error.message
-            }
-        }
-
-        const _services = await serviceModel.find({
-            block: blockId,
-            isDeleted: false
+        const services = await serviceModel.find({
+            block: block._id
         })
-
-        return _services
+        return services
     } catch (error) {
-        return new Error(error)
+        return throwError({
+            statusCode: 500,
+            errorCode: Code.GET_SERVICES_BY_BLOCK_FAILED,
+            message: 'Lấy danh sách dịch vụ thất bại !'
+        })
     }
 }
 
-const GetServiceById = async (userId, serviceId) => {
+const GetServiceById = async (user, serviceId) => {
     try {
-        const _service = await serviceModel.findById(serviceId)
-        if (!_service) return {
-            error: {
-                message: 'Không tìm thấy dịch vụ !'
-            }
-        }
+        const service = await serviceModel.findById(serviceId)
 
-        const _services = await GetBlockServices(userId, _service.block.toString())
-        let _result = null
-        _services.forEach(service => {
-            if (service.nameService === _service.nameService){
-                _result= service
-                return
-            }
+        await blockModel.findOne({
+            _id: service.block,
+            block: {$in: user.blocks}
         })
 
-        if (_result) return _result
-        return {
-            error: {
-                message: 'Không tìm thấy dịch vụ !'
-            }
-        }
+        return service
     } catch (error) {
-        return new Error(error)
+        return throwError({
+            statusCode: 500,
+            errorCode: Code.GET_SERVICE_BY_ID_FAILED,
+            message: 'Lấy thông tin dịch vụ thất bại !'
+        })
     }
 }
 
-const UpdateService = async (userId, service) => {
+const UpdateService = async (user, newService, session) => {
     try {
-        const _services = await GetBlockServices(userId, service.block)
-        if (_services.error) return {
-            error: {
-                message: _services.error.message
+        const services = await GetBlockServices(user, newService.block)
+        for (let i = 0; i < services.length; ++i) {
+            if (services[i]._id.toString() !== newService._id && services[i].nameService === newService.nameService){
+                return throwError({
+                    statusCode: 500,
+                    errorCode: Code.NAME_SERVICE_EXIST,
+                    message: 'Tên dịch vụ đã tồn tại !'
+                })
             }
         }
 
+        const service = await GetServiceById(user, newService._id)
 
-        let _error = false
-        _services.forEach(_service => {
-            if (_service.nameService === service.nameService && _service._id.toString() !== service._id) {
-                _error = true
-                return
-            }
-        })
-        if (_error) return {
-            error: {
-                message: 'Tên dịch vụ đã tồn tại !'
-            }
-        }
-
-        const _service = await serviceModel.findById(service._id)
-        if (_service.error) return {
-            error:{
-                message: _service.error.message
-            }
-        }
-
-        if (_service.block.toString() !== service.block){
-            const _oldBlock = await blockModel.findOne({
-                _id: _service.block.toString(),
+        if (service.block !== newService.block){
+            const oldBlock = await blockModel.findOne({
+                _id: service.block,
                 isDeleted: false,
-                owner: userId
+                owner: user._id
             })
 
-            if (_oldBlock.error) return {
-                error: {
-                    message: _oldBlock.error.message
-                }
-            }
+            oldBlock.services.remove(service._id)
+            await oldBlock.save({session})
 
-            await _service.updateOne({
-                nameService: service.nameService ? service.nameService : _service.nameService,
-                price: service.price ? service.price : _service.price,
-                unit: service.unit ? service.unit : _service.unit,
-                block: service.block ? service.block : _service.block
-            })
-            await _service.save()
-
-            const oldServices = _.remove(_oldBlock.services, service._id)
-            await _oldBlock.updateOne({services: oldServices})
-            await _oldBlock.save()
-
-            const _newBlock = await blockModel.findOne({
-                _id: service.block.toString(),
+            const newBlock = await blockModel.findOne({
+                _id: newService.block,
                 isDeleted: false,
-                owner: userId
+                owner: user._id
             })
-            await _newBlock.services.push(_service.id)
-            await _newBlock.save()
-
-            return "okk"
+            newBlock.services.push(service.id)
+            await newBlock.save({session})
         }
 
-        await _service.updateOne({
-            nameService: service.nameService ? service.nameService : _service.nameService,
-            price: service.price ? service.price : _service.price,
-            unit: service.unit ? service.unit : _service.unit
-        })
-        await _service.save()
-        return "ok"
+        await service.updateOne({...newService}, {session})
+        return newService
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.UPDATE_SERVICE_FAILED
+        return throwError(error)
     }
 }
 
-const DeleteService = async (userId, serviceId) => {
+const DeleteService = async (user, serviceId, session) => {
     try {
-        const _service = await GetServiceById(userId, serviceId)
-        if (_service.error) return {
-            error: {
-                message: _service.error.message
-            }
-        }
+        const service = await GetServiceById(user, serviceId)
 
-        await _service.updateOne({
+        await service.updateOne({
             isDeleted: true
-        })
-        await _service.save()
+        }, {session})
 
-        return _service
+        return service
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.DELETE_SERVICE_FAILED
+        return throwError(error)
     }
 }
 
-const DeleteServices = async (userId, serviceIds) => {
+const DeleteServices = async (user, serviceIds, session) => {
     try {
-        let error = null
         for (let i =0; i < serviceIds.length; i++){
-            let _service = await GetServiceById(userId, serviceIds[i])
-            console.log("_service", _service)
-            if (_service.error) {
-                error = _service.error
-                return {error} 
-            }
+            await DeleteService(user, serviceIds[i], session)
         }
 
-        for (let i =0; i < serviceIds.length; i++){
-            let _service = await GetServiceById(userId, serviceIds[i])
-            await _service.updateOne({
-                isDeleted: true
-            })
-            await _service.save()
-        }
-
-        return {error}
+        return {}
     } catch (error) {
-        return new Error(error)
+        return throwError(error)
     }
 }
 

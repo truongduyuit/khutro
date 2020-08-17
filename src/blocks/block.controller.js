@@ -1,20 +1,17 @@
+const mongoose = require('mongoose')
+
+const {responseToClient} = require('../../helpers/responseToClient.helper')
 const blockService = require('./block.service')
-const {isEmpty} = require('lodash')
+
 const CreateBlock = async (req, res, next) => {
     try {
-        const {userId} = req
+        const {user} = req
         const block = req.body
 
-        const result = await blockService.CreateBlock(userId, block)
-
-        if (result.error) return res.status(500).json({
-            error: {
-                message: result.error.message
-            }
-        })
-
-        return res.status(201).json({
-            message: 'Tạo khu trọ thành công !'
+        const newBlock = await blockService.CreateBlock(user, block)
+        return responseToClient(res, {
+            statusCode: 201,
+            data: newBlock,
         })
     } catch (error) {
         return next(error)
@@ -22,22 +19,11 @@ const CreateBlock = async (req, res, next) => {
 }
 const GetBlocksOwner = async (req, res, next) => {
     try {
-        const {userId} = req
-        const result = await blockService.GetBlocksOwner(userId)
+        const {user} = req
+        const blocks = await blockService.GetBlocksOwner(user)
 
-        if (result.error) return res.status(400).json({
-            error: {
-                message: result.error
-            }
-        })
-
-        if (isEmpty(result)) res.status(200).json({
-            message: 'Bạn chưa có khu trọ nào !'
-        })
-
-        return res.status(200).json({
-            message: 'Lấy danh sách khu trọ thành công !',
-            blocks: result
+        return responseToClient(res, {
+            data: blocks
         })
     } catch (error) {
         return next(error)
@@ -46,20 +32,13 @@ const GetBlocksOwner = async (req, res, next) => {
 
 const GetBlockById = async (req, res, next) => {
     try {
-        const {userId} = req
+        const {user} = req
         const {_id} = req.query
 
-        const result = await blockService.GetBlockById(userId, _id)
+        const block = await blockService.GetBlockById(user, _id)
 
-        if (result.error) return res.status(500).json({
-            error: {
-                message: result.error.message
-            }
-        })
-
-        return res.status(200).json({
-            message: 'Tìm kiếm khu trọ thành công',
-            block: result
+        return responseToClient(res, {
+            data: block
         })
     } catch (error) {
         return next(error)
@@ -68,31 +47,12 @@ const GetBlockById = async (req, res, next) => {
 
 const UpdateBlock = async (req, res, next) => {
     try {
-        const {userId} = req
-        const block = req.body
-        const {_id} = req.query
+        const {user} = req
+        const newBlock = req.body
 
-        if (block._id !== _id) return res.status(500).json({
-            error: {
-                message: 'Mã khu trọ không trùng khớp!',
-            }
-        })
-
-        const result = await blockService.UpdateBlock(userId, block)
-        if (result.error) return res.status(400).json({
-            error: {
-                message: result.error.message
-            }
-        })
-
-        if (isEmpty(result)) return res.status(500).json({
-            error: {
-                message: 'Tên khu trọ đã tổn tại !'
-            }
-        })
-
-        return res.status(201).json({
-            message: 'Cập nhật thông tin trọ thành công !'
+        await blockService.UpdateBlock(user, newBlock)
+        return responseToClient(res, {
+            data: newBlock
         })
     } catch (error) {
         return next(error)
@@ -100,42 +60,45 @@ const UpdateBlock = async (req, res, next) => {
 }
 
 const DeleteBlock = async (req, res, next) => {
+    const session = await mongoose.startSession()
+    session.startTransaction()
+
     try {
-        const {userId} = req
-        const idBlockQuery = req.query._id
+        const {user} = req
+        const {_id} = req.query
 
-        const result = await blockService.DeleteBlock(userId, idBlockQuery)
-        if (result.error) return res.status(500).json({
-            error: {
-                message: result.error.message
-            }
-        })
+        const block = await blockService.DeleteBlock(user, _id, session)
 
-        return res.status(200).json({
-            message: 'Xóa khu trọ thành công !'
+        await session.commitTransaction()
+        return responseToClient(res, {
+            data: block
         })
     } catch (error) {
+        await session.abortTransaction()
         return next(error)
+    } finally {
+        session.endSession()
     }
 }
 
 const DeleteBlocks = async (req, res, next) => {
+    const session = await mongoose.startSession()
+    session.startTransaction()
+
     try {
-        const {userId} = req
-        const blockIdBody = req.body._ids
+        const {user} = req
+        const {_ids} = req.body
 
-        const result = await blockService.DeleteBlocks(userId, blockIdBody)
-        if (result.error) return res.status(500).json({
-            error: {
-                message: result.error.message
-            }
+        await blockService.DeleteBlocks(user, _ids, session)
+        await session.commitTransaction()
+        return responseToClient(res, {
+            data: _ids
         })
-
-        return res.status(200).json({
-            message: 'Xóa khu trọ thành công'
-        })
-    } catch (error) {
+    }  catch (error) {
+        await session.abortTransaction()
         return next(error)
+    } finally {
+        session.endSession()
     }
 }
 

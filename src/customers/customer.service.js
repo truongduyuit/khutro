@@ -1,224 +1,169 @@
-const roomModel = require('../rooms/room.model')
-const roomService = require('../rooms/room.service')
-const userModel = require('../users/user.model')
 const _ = require('lodash')
 
+const {throwError} = require('../../helpers/responseToClient.helper')
+const Code = require('./customer.code')
+
 const {USER_ROLE_ENUM} = require('../../configs/app.config')
+const roomModel = require('../rooms/room.model')
+const userModel = require('../users/user.model')
 
 const CreateCustomer = async (user, customer) => {
     try {
-            if (customer.email) {
-                let email = customer.email
-                let user = await userModel.findOne({email, role: 'owner'})
-                if (user) {
-                    return {
-                        error: {
-                            message: 'Email đã được sử dụng !'
-                        }
+        if (customer.email) {
+            let user = await userModel.findOne({email: customer.email, role: 'owner'})
+            if (user) {
+                return {
+                    error: {
+                        message: 'Email đã được sử dụng !'
                     }
                 }
-            }
-
-            const _userBlocks = user.blocks
-            const _roomsOwner = await roomModel.find({
-                block: {$in: _userBlocks}
-            })
-
-            for (let i =0; i < _roomsOwner.length; ++i){
-                if (_roomsOwner[i]._id.toString() === customer.room){
-
-                    if (_roomsOwner[i].maxPeople === _roomsOwner[i].customers.length) return {
-                        error: {
-                            message: "Phòng đã đủ người !"
-                        }
-                    }
-
-                    const newCustomer = new userModel({
-                        email: customer.email ? customer.email : '',
-                        role: USER_ROLE_ENUM.CUSTOMER,
-                        fullName: customer.fullName,
-                        address: customer.address,
-                        phoneNumber: customer.phoneNumber,
-                        room: customer.room
-                    })
-                    await newCustomer.save()
-
-                    _roomsOwner[i].customers.push(newCustomer._id)
-                    await _roomsOwner[i].save()
-
-                    return newCustomer
-                }
-            }
-        return {
-            error: {
-                message: 'Phòng trọ không tồn tại !'
             }
         }
+
+        const roomsOwner = await roomModel.find({
+            block: {$in: user.blocks},
+            isDeleted: false
+        })
+
+        for (let i =0; i < roomsOwner.length; ++i){
+            if (roomsOwner[i]._id.toString() === customer.room){
+                const currentNumberPeople = await userModel.find({room: customer.room, isDeleted: false})
+                if (roomsOwner[i].maxPeople === currentNumberPeople.length) {
+                    return throwError({
+                        errorCode: Code.ROOM_IS_FULL,
+                        message: 'Phòng đã đủ người !'
+                    })
+                }
+
+                const newCustomer = new userModel({...customer, role: USER_ROLE_ENUM.CUSTOMER})
+
+                roomsOwner[i].customers.push(newCustomer._id)
+                await roomsOwner[i].save()
+
+                await newCustomer.save()
+                return newCustomer
+            }
+        }
+
+        return throwError({
+            errorCode: Code.ROOM_NOT_EXIST,
+            message: 'Phòng trọ không tồn tại !'
+        })
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.CREATE_CUSTOMER_FAILED
+        return throwError(error)
     }
 }
 
 const GetCustomersByOwner = async (user) => {
     try {
-        const _userBlocks = user.blocks
-        const _customersRoom = await roomModel.find({
-            block: {$in: _userBlocks},
-            isDeleted: false
-        }).populate('user')
+        const userRooms = await roomModel.find({
+            block: {$in: user.blocks}
+        })
 
-        if (_.isEmpty(_customersRoom)) return {
-            error: {
-                message: 'Bạn chưa có khách hàng nào !'
-            }
+        let customerIds = []
+        for (let i =0; i < userRooms.length; i++){
+            customerIds = _.concat(customerIds, userRooms[i].customers)
         }
 
-        let _customerIds = []
-        for (let i =0; i < _customersRoom.length; i++){
-            _customerIds = _.concat(_customerIds, _customersRoom[i].customers)
-        }
-
-        const _customers = await userModel.find({
-            _id: {$in : _customerIds},
-            isDeleted: false,
+        const customers = await userModel.find({
+            _id: {$in : customerIds},
             role: USER_ROLE_ENUM.CUSTOMER,
-        }, {email: 1, fullName: 1, address: 1, phoneNumber: 1}).populate('room', 'nameRoom')
-        return _customers
+        }, {email: 1, fullName: 1, address: 1, phoneNumber: 1, isDeleted: 1}).populate('room')
+        return customers
     } catch (error) {
-        return new Error(error)
+        return throwError({
+            errorCode: Code.GET_CUSTOMER_BY_OWNER_FAILED,
+            message: 'Lấy danh sách khành hàng thất bại !'
+        })
     }
 }
 
 const GetCustomerById = async (user, customerId) => {
     try {
-        const _customers = await GetCustomersByOwner(user)
-        if (_customers.error) return {
-            error: {
-                message: _customers.error.message
+        const customers = await GetCustomersByOwner(user)
+
+        for (let i = 0; i < customers.length; i++){
+            if (customers[i]._id.toString() === customerId.toString()){
+                return customers[i]
             }
         }
 
-        for (let i = 0; i< _customers.length; i++){
-            if (_customers[i]._id.toString() === customerId){
-                return _customers[i]
-            }
-        }
-
-        return {
-            error: {
-                message: 'Không tìm thấy khách hàng !'
-            }
-        }
-    } catch (error) {
-        return new Error(error)
-    }
-}
-
-const UpdateCustomer = async (user, customer) => {
-    try {
-            const _customer = await userModel.findOne({
-                role: USER_ROLE_ENUM.CUSTOMER,
-                isDeleted: false,
-                _id: customer._id
-            })
-
-            if (!_customer) return {
-                error: {
-                    message: 'Khách hàng không tồn tại !'
-                }
-            }
-
-            const _room = await roomService.GetRoomById(user._id.toString(), _customer.room)
-            if(_room.error) return {
-                error: {
-                    message: 'Phòng của khách hàng không phải của bạn !'
-                }
-            }
-
-            if (customer.email) {
-                let _user = await userModel.findOne({email : customer.email, _id : {$ne: customer._id}})
-                if (_user) {
-                    return {
-                        error: {
-                            message: 'Email đã được sử dụng !'
-                        }
-                    }
-                }
-            }
-
-            if (_customer.room._id.toString() !== customer.room){
-                const _oldRoom = await roomModel.findById(_customer.room._id)
-                const _newRoom = await roomModel.findById(customer.room)
-                if (!_newRoom) return {
-                    error: {
-                        message: 'Phòng trọ không tồn tại !'
-                    }
-                }
-
-                await _customer.updateOne({
-                    email: customer.email ? customer.email : _customer.email,
-                    fullName: customer.fullName ? customer.fullName : _customer.fullName,
-                    address: customer.address ? customer.address : _customer.address,
-                    phoneNumber: customer.phoneNumber ? customer.phoneNumber : _customer.phoneNumber,
-                    room: customer.room
-                })
-                await _customer.save()
-
-                _oldRoom.customers.remove(_customer._id)
-                await _oldRoom.save()
-
-                _newRoom.customers.push(_customer._id)
-                await _newRoom.save()
-
-                return {}
-            }
-
-            await _customer.updateOne({
-                email: customer.email ? customer.email : _customer.email,
-                fullName: customer.fullName ? customer.fullName : _customer.fullName,
-                address: customer.address ? customer.address : _customer.address,
-                phoneNumber: customer.phoneNumber ? customer.phoneNumber : _customer.phoneNumber
-            })
-            await _customer.save()
-
-            return {}
-    } catch (error) {
-        return new Error(error)
-    }
-}
-
-const DeleteCustomer = async (user, customerId) => {
-    try {
-        const _customer = await GetCustomerById(user, customerId)
-        if (_customer.error) return {
-            error: {
-                message: _customer.error.message
-            }
-        }
-
-        await _customer.updateOne({
-            isDeleted: true
+        return throwError({
+            errorCode: Code.GET_CUSTOMER_BY_ID_FAILED,
+            message: 'Lấy thông tin khành hàng thất bại !'
         })
-        await _customer.save()
+    } catch (error) {
+        return throwError(error)
+    }
+}
+
+const UpdateCustomer = async (user, newCustomer, session) => {
+    try {
+        const customer = await GetCustomerById(user, newCustomer._id)
+
+        if (newCustomer.email) {
+            let user = await userModel.findOne({email : newCustomer.email, _id : {$ne: newCustomer._id}, role: USER_ROLE_ENUM.OWNER})
+            if (user) {
+                return throwError({
+                    errorCode: Code.EMAIL_IS_EXIST,
+                    message: 'Email đã được sử dụng !'
+                })
+            }
+        }
+
+        if (customer.room._id.toString() !== newCustomer.room){
+            const oldRoom = await roomModel.findById(customer.room)
+            const newRoom = await roomModel.findOne({
+                _id: newCustomer.room,
+                block: {$in: user.blocks}
+            })
+
+            if (!newRoom) {
+                return throwError({
+                    errorCode: Code.ROOM_NOT_EXIST,
+                    message: 'Thấy thông tin phòng thất bại !'
+                })
+            }
+
+            oldRoom.customers.remove(customer._id)
+            newRoom.customers.push(customer._id)
+
+            await oldRoom.save({session})
+            await newRoom.save({session})
+        }
+
+        await customer.updateOne({...newCustomer}, {session})
+        return newCustomer
+    } catch (error) {
+        if (!error.errorCode) error.errorCode = Code.UPDATE_CUSTOMER_FAILED
+        return throwError(error)
+    }
+}
+
+const DeleteCustomer = async (user, customerId, session) => {
+    try {
+        const customer = await GetCustomerById(user, customerId)
+
+        await customer.updateOne({
+            isDeleted: true
+        }, {session})
+
+        return customer
+    } catch (error) {
+        if (!error.errorCode) error.errorCode = Code.DELETE_CUSTOMER_FAILED
+        return throwError(error)
+    }
+}
+
+const DeleteCustomers = async (user, customerIds, session) => {
+    try {
+        for (let i =0; i < customerIds.length; i++){
+            await DeleteCustomer(user, customerIds[i], session)
+        }
         return {}
     } catch (error) {
-        return new Error(error)
-    }
-}
-
-const DeleteCustomers = async (user, customerIds) => {
-    try {
-        let error = null
-        for (let i =0; i < customerIds.length; i++){
-            let _result = await DeleteCustomer(user, customerIds[i].toString())
-            if (_result.error){
-                error = _result.error
-                break
-            }
-        }
-        return {error}
-    } catch (error) {
-        return new Error(error)
+        return throwError(error)
     }
 }
 

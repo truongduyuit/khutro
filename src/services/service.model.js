@@ -22,6 +22,8 @@ const schema = new Schema({
         type: Schema.Types.ObjectId,
         ref : 'block'
     }
+},{
+    timestamps: true
 })
 
 module.exports = mongoose.model('service', schema)

@@ -15,7 +15,7 @@ router.get('', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateQueryParam(i
     .get('/owner-bills', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), billController.GetBillByOwner)
     .get('/customer-bills', AuthenticateRoleJWT([USER_ROLE_ENUM.CUSTOMER]), billController.GetBillByCustomer)
     .post('/create', AuthenticateRoleJWT(USER_ROLE_ENUM.OWNER), ValidateBody(billValidator), billController.CreateBill)
-    .put('/update', AuthenticateRoleJWT(USER_ROLE_ENUM.OWNER), ValidateQueryParam(idValidator), ValidateBody(billValidator), billController.UpdateBill)
+    .put('/update', AuthenticateRoleJWT(USER_ROLE_ENUM.OWNER), ValidateBody(billValidator), billController.UpdateBill)
     .delete('/delete', AuthenticateRoleJWT(USER_ROLE_ENUM.OWNER), ValidateQueryParam(idValidator), billController.DeleteBill)
 
 module.exports = router

@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon app.js"
+    "start": "nodemon app.js",
+    "db": "run-rs -v 4.2.8 --shell --keep"
   },
   "keywords": [],
   "author": "",

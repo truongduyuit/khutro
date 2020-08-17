@@ -1,37 +1,30 @@
+const mongoose = require('mongoose')
+const {responseToClient} = require('../../helpers/responseToClient.helper')
 const serviceService = require('./service.service')
 
 const CreateService = async (req, res, next) => {
-    const {userId} = req
-    const _service = req.body
+    try {
+        const {user} = req
+        const service = req.body
 
-    const _result = await serviceService.CreateService(userId, _service)
-    console.log('_result', _result)
-    if (_result.error) return res.status(500).json({
-        error: {
-            message: _result.error.message
-        }
-    })
-
-    return res.status(201).json({
-        message: 'Thêm dịch vụ thành công !'
-    })
+        const newService = await serviceService.CreateService(user, service)
+        return responseToClient(res, {
+            statusCode: 201,
+            data: newService
+        })
+    } catch (error) {
+        return next(error)
+    }
 }
 
 const GetBlockServices = async (req, res, next) => {
     try {
-        const {userId} = req
+        const {user} = req
         const {_id} = req.query
 
-        const _services = await serviceService.GetBlockServices(userId, _id)
-        if (_services.error) return res.status(500).json({
-            error: {
-                message: _services.error.message
-            }
-        })
-
-        return res.status(200).json({
-            message: 'Lấy danh sách dịch vụ thành công !',
-            services : _services
+        const services = await serviceService.GetBlockServices(user, _id)
+        return responseToClient(res, {
+            data: services
         })
     } catch (error) {
         return next(error)
@@ -40,19 +33,13 @@ const GetBlockServices = async (req, res, next) => {
 
 const GetServiceById = async (req, res, next) => {
     try {
-        const {userId} = req
+        const {user} = req
         const {_id} = req.query
 
-        const _service = await serviceService.GetServiceById(userId, _id)
-        if (_service.error) return res.status(500).json({
-            error: {
-                message: _service.error.message
-            }
-        })
+        const service = await serviceService.GetServiceById(user, _id)
 
-        return res.status(200).json({
-            message: 'Lấy thông tin dịch vụ thành công !',
-            service : _service
+        return responseToClient(res, {
+            data: service
         })
     } catch (error) {
         return next(error)
@@ -60,69 +47,66 @@ const GetServiceById = async (req, res, next) => {
 }
 
 const UpdateService = async (req, res, next) => {
+    const session = await mongoose.startSession()
+    session.startTransaction()
+
     try {
-        const {userId} = req
-        const {_id} = req.query
-        const _service = req.body
+        const {user} = req
+        const newService = req.body
+        
+        await serviceService.UpdateService(user, newService, session)
 
-        if (_id !== _service._id) return res.status(500).json({
-            error: {
-                message: 'Mã dịch vụ không trùng khớp'
-            }
-        })
-
-        const _services = await serviceService.UpdateService(userId, _service)
-        if (_services.error) return res.status(500).json({
-            error: {
-                message: _services.error.message
-            }
-        })
-
-        return res.status(200).json({
-            message: 'Cập nhật dịch vụ thành công !',
+        await session.commitTransaction()
+        return responseToClient(res, {
+            data: newService
         })
     } catch (error) {
+        await session.abortTransaction()
         return next(error)
+    } finally {
+        session.endSession()
     }
 }
 
 const DeleteService = async (req, res, next) => {
+    const session = await mongoose.startSession()
+    session.startTransaction()
     try {
-        const {userId} = req
+        const {user} = req
         const {_id} = req.query
 
-        const _result = await serviceService.DeleteService(userId, _id)
-        if (_result.error) return res.status(500).json({
-            error: {
-                message: _result.error.message
-            }
-        })
-
-        return res.status(200).json({
-            message: 'Xóa dịch vụ thành công !'
+        const service = await serviceService.DeleteService(user, _id)
+        await session.commitTransaction()
+        return responseToClient(res, {
+            data: service
         })
     } catch (error) {
+        await session.abortTransaction();
         return next(error)
+    } finally {
+        session.endSession()
     }
 }
 
 const DeleteServices = async (req, res, next) => {
+    const session = await mongoose.startSession()
+    session.startTransaction()
+
     try {
-        const {userId} = req
+        const {user} = req
         const {_ids} = req.body
 
-        const result = await serviceService.DeleteServices(userId, _ids)
-        if (result.error) return res.status(500).json({
-            error: {
-                message: result.error.message
-            }
-        })
+        await serviceService.DeleteServices(user, _ids, session)
 
-        return res.status(200).json({
-            message: 'Xóa dịch vụ thành công !'
+        await session.commitTransaction()
+        return responseToClient(res, {
+            data: _ids
         })
     } catch (error) {
+        await session.abortTransaction();
         return next(error)
+    } finally {
+        session.endSession()
     }
 }
 

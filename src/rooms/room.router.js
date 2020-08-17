@@ -13,7 +13,7 @@ router.get('', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateQueryParam(i
     .get('/owner-block-rooms', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateQueryParam(idValidator), roomController.GetBlockRooms)
     .get('/customer-rooms', AuthenticateRoleJWT([USER_ROLE_ENUM.CUSTOMER]), roomController.GetRoomByCustomer)
     .post('/create', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateBody(roomValidator), roomController.CreateRoom)
-    .put('/update', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateQueryParam(idValidator), ValidateBody(roomValidator), roomController.UpdateRoom)
+    .put('/update', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateBody(roomValidator), roomController.UpdateRoom)
     .delete('/delete', AuthenticateRoleJWT(USER_ROLE_ENUM.OWNER), ValidateQueryParam(idValidator), roomController.DeleteRoom)
     .delete('/delete-many', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateBody(RoomDeleteManyValidator), roomController.DeleteRooms)
 module.exports = router

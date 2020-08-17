@@ -1,7 +1,7 @@
 const joi = require('@hapi/joi')
 
 const billValidator = joi.object({
-    _id: joi.string().required().regex(/^[0-9a-fA-F]{24}$/),
+    _id: joi.string().regex(/^[0-9a-fA-F]{24}$/),
     title: joi.string().required().min(6).max(500),
     room: joi.string().required().regex(/^[0-9a-fA-F]{24}$/),
     roomPrice: joi.number().required().min(0),
