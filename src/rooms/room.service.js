@@ -1,240 +1,150 @@
-const _ = require('lodash')
+const mongoose = require('mongoose')
+
+const {throwError} = require('../../helpers/responseToClient.helper')
+const Code = require('./room.code')
 
 const roomModel = require('./room.model')
 const blockModel = require('../blocks/block.model')
 const customerService = require('../customers/customer.service')
 const userModel = require('../users/user.model')
 
-const CreateRoom = async (userId, room) => {
+const CreateRoom = async (user, room) => {
     try {
-        const _rooms = await GetBlockRooms(userId, room.block)
-
-        if (_rooms.error) return {
-            error:{
-                message: _rooms.error.message
+        const rooms = await GetBlockRooms(user, room.block)
+        for (let i = 0; i < rooms.length; ++i){
+            if (rooms[i].nameRoom === room.nameRoom) {
+                return throwError({
+                    errorCode: Code.NAME_ROOM_EXIST,
+                    message: 'Tên phòng đã tồn tại !'
+                })
             }
         }
 
-        let _error= false
-        _rooms.forEach(_room =>{
-            if (_room.nameRoom === room.nameRoom) {
-                _error = true
-                return _error
-            }
-        })
-        if (_error)  return {
-            error:{
-                message: 'Tên phòng đã tồn tại !'
-            }
-        }
+        const newRoom = new roomModel(room)
+        const block = await blockModel.findOne({_id: room.block, owner: user._id})
+        block.rooms.push(newRoom._id)
 
-        const _newRoom = new roomModel(room)
-        await _newRoom.save()
-
-        const _block = await blockModel.findById(room.block)
-        _block.rooms.push(_newRoom._id)
-        await _block.save()
-
-        return "ok"
+        await newRoom.save()
+        await block.save()
+        return newRoom
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.CREATE_ROOM_FAILED
+        return throwError(error)
     }
 }
-const GetBlockRooms = async (userId, blockId) => {
+const GetBlockRooms = async (user, blockId) => {
     try {
-        const _block = await blockModel.findOne({
+        await blockModel.findOne({
             _id: blockId,
-            owner: userId,
-            isDeleted: false
+            owner: user._id
         })
-        console.log('_block', _block)
-        if (!_block) return {
-            error:{
-                message: 'Khu trọ không tồn tại !'
-            }
-        }
 
-        if (_block.error) return {
-            error:{
-                message: _block.error.message
-            }
-        }
-        const _rooms = await roomModel.find({block: blockId, isDeleted: false}).populate('block')
-
-
-        if (_rooms.error) return {
-            error:{
-                message: 'Lấy danh sách phòng thất bại !'
-            }
-        }
-
-        return _rooms
+        const rooms = await roomModel.find({block: blockId})
+        return rooms
     } catch (error) {
-        return new Error(error)
+        return throwError({
+            errorCode: Code.GET_BLOCK_ROOM_FAILED,
+            message: 'Lấy danh sách phòng thất bại !'
+        })
     }
 }
 
-const GetRoomById = async (userId, roomId) => {
+const GetRoomById = async (user, roomId) => {
     try {
-        const _room = await roomModel.findOne({_id: roomId, isDeleted: false}).populate('block')
-        if (!_room) return {
-            error:{
-                message: 'Phòng không tồn tại !'
-            }
-        }
+        const room = await roomModel.findOne({_id: roomId})
 
-        if (userId !== _room.block.owner.toString())  return {
-            error:{
-                message: 'Không tìm thấy thông tin phòng !'
-            }
-        }
-
-        return _room
+        await blockModel.findOne({
+            _id: room.block,
+            owner: user._id
+        })
+        return room
     } catch (error) {
-        return new Error(error)
+        return throwError({
+            errorCode: Code.GET_ROOM_BY_ID_FAILED,
+            message: 'Lấy thông tin phòng thất bại !'
+        })
     }
 }
 
 const GetRoomByCustomer = async (user) => {
     try {
-        const _rooms = await roomModel.find({
-            customers: {$elemMatch: {$eq: user._id}},
-            isDeleted: false
-        }).populate('customers')
+        const rooms = await roomModel.find({
+            customers: {$elemMatch: {$eq: user._id}}
+        })
 
-        if (!_rooms) return {
-            error: {
-                message: 'Lấy danh sách phòng thất bại !'
-            }
-        }
-
-        return _rooms
+        return rooms
     } catch (error) {
-        return new Error(error)
+        return throwError({
+            errorCode: Code.GET_ROOMS_BY_CUSTOMER_FAILED,
+            message: 'Lấy danh sách phòng thất bại !'
+        })
     }
 }
-const UpdateRoom = async (userId, room) => {
+const UpdateRoom = async (user, newRoom, session) => {
     try {
-        const _rooms = await GetBlockRooms(userId, room.block)
-        if (_rooms.error) return {
-            error:{
-                message: _rooms.error.message
+        const rooms = await GetBlockRooms(user, newRoom.block)
+        for (let i = 0; i < rooms.length; ++i){
+            if (rooms[i]._id.toString() !== newRoom._id.toString() && rooms[i].nameRoom === newRoom.nameRoom) {
+                throwError({
+                    errorCode: Code.NAME_ROOM_EXIST,
+                    message: 'Tên phòng đã tồn tại !'
+                })
             }
         }
 
-        let _error = false
-        _rooms.forEach(_room => {
-            if (_room.nameRoom === room.nameRoom && _room._id.toString() !== room._id) {
-                _error = true
-                return
-            }
-        })
-        if (_error) return {
-            error: {
-                message: 'Tên phòng đã tồn tại !'
-            }
-        }
-
-
-        const _room = await GetRoomById(userId, room._id)
-        if (_room.error) return {
-            error:{
-                message: _room.error.message
-            }
-        }
+        const room = await GetRoomById(user, newRoom._id)
 
         // thay đổi khu trọ
-        if (_room.block._id.toString() !== room.block) {
-            const _oldBlock = await blockModel.findOne({
-                _id: _room.block._id,
-                owner: userId
+        if (room.block !== newRoom.block) {
+            const oldBlock = await blockModel.findOne({
+                _id: room.block._id,
+                owner: user._id
             })
-            if (_oldBlock.error) return {
-                error: {
-                    message: _oldBlock.error.message
-                }
-            }
+            oldBlock.rooms.remove(room._id)
 
-            await _room.updateOne({
-                nameRoom: room.nameRoom ? room.nameRoom : _room.nameRoom,
-                floor: room.floor ? room.floor : _room.floor,
-                square: room.square ? room.square : _room.square,
-                description: room.description ? room.description : _room.description,
-                maxPeople: room.maxPeople ? room.maxPeople : _room.maxPeople,
-                block: room.block ? room.block : _room.block
+            const newBlock = await blockModel.findOne({
+                _id: newRoom.block,
+                owner: user._id
             })
-            await _room.save()
-
-            const oldRooms = _.remove(_oldBlock.rooms, id => id === _room.id)
-            await _oldBlock.updateOne({rooms: oldRooms})
-            await _oldBlock.save()
-
-            const _newBlock = await blockModel.findOne({
-                _id: room.block,
-                owner: userId
-            })
-            await _newBlock.rooms.push(_room._id)
-            await _newBlock.save()
-
-            return "okk"
+            await oldBlock.save({session})
+            await newBlock.rooms.push(room._id)
+            await newBlock.save({session})
         }
 
-        await _room.updateOne({
-            nameRoom: room.nameRoom ? room.nameRoom : _room.nameRoom,
-            floor: room.floor ? room.floor : _room.floor,
-            square: room.square ? room.square : _room.square,
-            description: room.description ? room.description : _room.description,
-            maxPeople: room.maxPeople ? room.maxPeople : _room.maxPeople
-        })
-        await _room.save()
-
-        return "ok"
+        await room.updateOne({...newRoom}, {session})
+        return newRoom
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.UPDATE_ROOM_FAILED
+        return throwError(error)
     }
 }
 
-const DeleteRoom = async (userId, roomId) => {
+const DeleteRoom = async (user, roomId, session) => {
     try {
-        const _user = await userModel.findById(userId)
-        const _room = await GetRoomById(userId, roomId)
-        if (_room.error) return {
-            error:{
-                message: _room.error.message
-            }
-        }
+        const room = await GetRoomById(user, roomId)
 
-        const _result = await customerService.DeleteCustomers(_user, _room.customers)
-        if (_result.error) return {
-            error: {
-                message: _result.error.message
-            }
-        }
+        await customerService.DeleteCustomers(user, room.customers, session)
 
-        await _room.updateOne({
+        await room.updateOne({
             isDeleted: true
-        })
-        await _room.save()
+        }, {session})
 
-        return "ok"
+        return room
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.DELETE_ROOM_FAILED
+        return throwError(error)
     }
 }
 
-const DeleteRooms = async (userId, roomIds) => {
+const DeleteRooms = async (user, roomIds, session) => {
     try {
-        let error = null
         for (let i =0; i < roomIds.length; i++){
-            const _result = await DeleteRoom(userId, roomIds[i].toString())
-            if(_result.error) {
-                error = _result.error
-                break
-            }
+            await DeleteRoom(user, roomIds[i], session)
         }
-        return {error}
+
+        return {}
     } catch (error) {
-        return new Error(error)
+        return throwError(error)
     }
 }
 

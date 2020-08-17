@@ -41,6 +41,8 @@ const schema = new Schema({
         type: Boolean,
         default: false
     }
+}, {
+    timestamps: true
 })
 
 

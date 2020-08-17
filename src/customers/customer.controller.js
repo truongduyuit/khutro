@@ -1,20 +1,16 @@
-const CustomerService = require('./customer.service')
+const mongoose = require('mongoose')
+
+const {responseToClient} = require('../../helpers/responseToClient.helper')
 const customerService = require('./customer.service')
 
 const CreateCustomer = async (req, res, next) => {
     try {
         const {user} = req
-        const customer = req.body 
+        const customer = req.body
 
-        const _result = await customerService.CreateCustomer(user, customer)
-        if (_result.error) return res.status(500).json({
-            error: {
-                message: _result.error.message
-            }
-        })
-
-        return res.status(201).json({
-            message: 'Thêm khách hàng thành công !'
+        const newCustomer = await customerService.CreateCustomer(user, customer)
+        return responseToClient(res, {
+            data: newCustomer
         })
     } catch (error) {
         return next(error)
@@ -26,16 +22,10 @@ const GetCustomersByOwner = async (req, res, next) => {
         const {user} = req
         const customer = req.body
 
-        const _result = await customerService.GetCustomersByOwner(user, customer)
-        if (_result.error) return res.status(500).json({
-            error: {
-                message: _result.error.message
-            }
-        })
+        const customers = await customerService.GetCustomersByOwner(user, customer)
 
-        return res.status(200).json({
-            message: 'Lấy danh sách khách hàng thành công !',
-            customers: _result
+        return responseToClient(res, {
+            data: customers
         })
     } catch (error) {
         return next(error)
@@ -47,16 +37,9 @@ const GetCustomerById = async (req, res, next) => {
         const {user} = req
         const {_id} = req.query
 
-        const _result = await customerService.GetCustomerById(user, _id)
-        if (_result.error) return res.status(500).json({
-            error: {
-                message: _result.error.message
-            }
-        })
-
-        return res.status(200).json({
-            message: 'Lấy thông tin khách hàng thành công !',
-            customer: _result
+        const customer = await customerService.GetCustomerById(user, _id)
+        return responseToClient(res, {
+            data: customer
         })
     } catch (error) {
         return next(error)
@@ -64,67 +47,64 @@ const GetCustomerById = async (req, res, next) => {
 }
 
 const UpdateCustomer = async (req, res, next) => {
+    const session = await mongoose.startSession()
+    session.startTransaction()
     try {
         const {user} = req
-        const {_id} = req.query
-        const _customer = req.body
+        const newCustomer = req.body
 
-        if (_id !== _customer._id) return res.status(500).json({
-            error: {
-                message: 'Mã khách hàng không trùng khớp !'
-            }
-        })
+        await customerService.UpdateCustomer(user, newCustomer,session)
 
-        const _result = await customerService.UpdateCustomer(user, _customer)
-        if (_result.error) return res.status(500).json({
-            message: _result.error.message
-        })
-
-        return res.status(200).json({
-            message: 'Cập nhật khách hàng thành công !'
+        await session.commitTransaction()
+        return responseToClient(res, {
+            data: newCustomer
         })
     } catch (error) {
+        await session.abortTransaction()
         return next(error)
+    } finally {
+        session.endSession()
     }
 }
 
 const DeleteCustomer = async (req, res, next) => {
+    const session = await mongoose.startSession()
+    session.startTransaction()
     try {
         const {user} = req
         const {_id} = req.query
 
-        const _result = await customerService.DeleteCustomer(user, _id)
-        if (_result.error) return res.status(500).json({
-            error: {
-                message: _result.error.message
-            }
-        })
-
-        return res.status(200).json({
-            message: 'Xóa khách hàng thành công !'
+        const customer = await customerService.DeleteCustomer(user, _id, session)
+        await session.commitTransaction()
+        return responseToClient(res, {
+            data: customer
         })
     } catch (error) {
+        await session.abortTransaction()
         return next(error)
+    } finally {
+        session.endSession()
     }
 }
 
 const DeleteCustomers = async (req, res, next) => {
+    const session = await mongoose.startSession()
+    session.startTransaction()
+
     try {
         const {user} = req
         const {_ids} = req.body
 
-        const _result = await customerService.DeleteCustomers(user, _ids)
-        if (_result.error) return res.status(500).json({
-            error: {
-                message: _result.error.message
-            }
-        })
-
-        return res.status(200).json({
-            message: 'Xóa khách hàng thành công !'
+        await customerService.DeleteCustomers(user, _ids, session)
+        await session.commitTransaction()
+        return responseToClient(res, {
+            data: _ids
         })
     } catch (error) {
+        await session.abortTransaction()
         return next(error)
+    } finally {
+        session.endSession()
     }
 }
 

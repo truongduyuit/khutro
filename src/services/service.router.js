@@ -13,7 +13,7 @@ const {serviceValidator, ServiceDeleteManyValidator} = require('./service.valida
 router.get('/', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateQueryParam(idValidator), serviceController.GetServiceById)
     .get('/owner-block-services', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateQueryParam(idValidator), serviceController.GetBlockServices)
     .post('/create', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateBody(serviceValidator), serviceController.CreateService)
-    .put('/update', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateQueryParam(idValidator), ValidateBody(serviceValidator), serviceController.UpdateService)
+    .put('/update', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateBody(serviceValidator), serviceController.UpdateService)
     .delete('/delete', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateQueryParam(idValidator), serviceController.DeleteService)
     .delete('/delete-many', AuthenticateRoleJWT([USER_ROLE_ENUM.OWNER]), ValidateBody(ServiceDeleteManyValidator) , serviceController.DeleteServices)
 

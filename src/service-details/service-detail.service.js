@@ -1,45 +1,39 @@
-const {USER_ROLE_ENUM} = require('../../configs/app.config')
-
-const serviceDetailModel = require('./service-detail.model')
-const roomService = require('../rooms/room.service')
-const serviceService = require('../services/service.service')
-const userModel = require('../users/user.model')
 const _ = require('lodash')
+
+const {throwError} = require('../../helpers/responseToClient.helper')
+const Code = require('./service-detail.code')
+
+const {USER_ROLE_ENUM} = require('../../configs/app.config')
+const serviceDetailModel = require('./service-detail.model')
+const userModel = require('../users/user.model')
+const blockModel = require('../blocks/block.model')
+
 
 const CreateServiceDetail = async (user, serviceDetail) => {
     try {
-        const _room = await roomService.GetRoomById(user._id.toString(), serviceDetail.room)
-        if (_room.error) return {
-            error: {
-                message: _room.error.message
-            }
-        }
+        const block = await blockModel.findOne({
+            rooms: {$elemMatch: {$eq: serviceDetail.room}},
+            services: {$elemMatch: {$eq: serviceDetail.service}}
+        })
+        if (!block) return throwError({
+            errorCode: Code.SERVICE_NOT_OF_ROOM,
+            message: 'Dịch vụ không phải của phòng !'
+        })
 
-        const _service = await serviceService.GetServiceById(user._id, serviceDetail.service)
-        if (_service.error) return {
-            error: {
-                message: _service.error.message
-            }
-        }
-
-        const _newServiceDetail = new serviceDetailModel(serviceDetail)
-        _newServiceDetail.owner = user._id
-        await _newServiceDetail.save()
-        return {}
+        const newServiceDetail = new serviceDetailModel(serviceDetail)
+        newServiceDetail.owner = user._id
+        await newServiceDetail.save()
+        return newServiceDetail
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.CREATE_SERVICE_DETAIL_FAILED
+        return throwError(error)
     }
 }
 
 const GetServiceDetailByRoomAndMonth = async (user, roomId, month, year) => {
     try {
         if (user.role === USER_ROLE_ENUM.CUSTOMER){
-            const _customers = await userModel.find({email: user.email})
-            if (_.isEmpty(_customers)) return {
-                error: {
-                    message : 'Lấy danh sách chi tiết dịch vụ thất bại !'
-                }
-            }
+            const _customers = await userModel.find({email: user.email, room: roomId})
 
             let _rooms = []
             for (let i =0 ; i < _customers.length; ++i){
@@ -48,159 +42,99 @@ const GetServiceDetailByRoomAndMonth = async (user, roomId, month, year) => {
                 }
             }
 
-            const _serviceDetails = await serviceDetailModel.find({
+            let serviceDetails = await serviceDetailModel.find({
                 room: {$in : _rooms}
-            }).populate({path: 'room', populate: {path: 'customers'}}).populate('service')
-            if (_.isEmpty(_serviceDetails)) return {
-                error: {
-                    message : 'Lấy danh sách chi tiết dịch vụ thất bại !'
-                }
-            }
-            return {
-                _rooms,
-                _serviceDetails
-            }
+            }).populate('room').populate('service')
+
+            return serviceDetails
         }
 
-        if (roomId) {
-            const _serviceDetails  = await serviceDetailModel.find({
-                                        owner: user._id.toString(),
-                                        ofMonth: {$lt : new Date(year, month, 1), $gte : new Date(year, month - 1 , 1)},
-                                        room: roomId,
-                                        isDeleted: false
-                                    }).populate({path: 'room', populate: {path: 'customers'}}).populate('service')
+        let serviceDetails  = await serviceDetailModel.find({
+            owner: user._id,
+            ofMonth: {$lt : new Date(year, month, 1), $gte : new Date(year, month - 1 , 1)},
+            room: roomId || {$exists: true}
+        }).populate('room').populate('service')
 
-            if (!_serviceDetails) return {
-                error: {
-                    message : 'Không tìm thấy danh sách chi tiết dịch vụ !'
-                }
-            }
-            return _serviceDetails
-        }
-
-        const _serviceDetails  = await serviceDetailModel.find({
-                                    owner: user._id.toString(),
-                                    ofMonth: {$lt : new Date(year, month, 1), $gte : new Date(year, month - 1 , 1)},
-                                    isDeleted: false
-                                }).populate({path: 'room', populate: {path: 'customers'}}).populate('service')
-
-        if (!_serviceDetails) return {
-            error: {
-                message : 'Không tìm thấy danh sách chi tiết dịch vụ !'
-            }
-        }
-        return _serviceDetails
+        return serviceDetails
     } catch (error) {
-        return new Error(error)
+        return throwError({
+            errorCode : Code.GET_SERVICE_DETAILS_MONTH_FAILED,
+            message: 'Lấy danh sách chi tiết dịch vụ thất bại !'
+        })
     }
 }
 
-const GetServiceDetailByOwner = async (user) => {
+const GetServiceDetailsByOwner = async (user) => {
     try {
-        const _serviceDetails  = await serviceDetailModel.find({
-                                        owner: user._id.toString(),
-                                        isDeleted: false
-                                    }).populate('room').populate('service')
+        const serviceDetails  = await serviceDetailModel.find({
+            owner: user._id
+        }).populate('room').populate('service')
 
-        if (!_serviceDetails) return {
-            error: {
-                message : 'Không tìm thấy danh sách chi tiết dịch vụ !'
-            }
-        }
-        return _serviceDetails
+        return serviceDetails
     } catch (error) {
-        return new Error(error)
+        return throwError({
+            errorCode : Code.GET_SERVICE_DETAILS_FAILED,
+            message: 'Lấy danh sách chi tiết dịch vụ thất bại !'
+        })
     }
 }
 
 const GetServiceDetailById = async (user, serviceDetailId) => {
     try {
-        const _serviceDetails  = await serviceDetailModel.findOne({
-                                        _id: serviceDetailId,
-                                        owner: user._id.toString(),
-                                        isDeleted: false
-                                    }).populate('room').populate('service')
+        const serviceDetail  = await serviceDetailModel.findOne({
+            _id: serviceDetailId,
+            owner: user._id.toString(),
+            isDeleted: false
+        }).populate('room').populate('service')
 
-        if (!_serviceDetails) return {
-            error: {
-                message : 'Không tìm thấy danh sách chi tiết dịch vụ !'
-            }
-        }
-        return _serviceDetails
+        return serviceDetail
     } catch (error) {
-        return new Error(error)
+        return throwError({
+            errorCode : Code.GET_SERVICE_DETAIL_BY_ID_FAILED,
+            message: 'Lấy thông tin chi tiết dịch vụ thất bại !'
+        })
     }
 }
 
-const UpdateServiceDetail = async (user, serviceDetail) => {
+const UpdateServiceDetail = async (user, newServiceDetail) => {
     try {
-        const _serviceDetail = await serviceDetailModel.findOne({
-            _id: serviceDetail._id,
-            owner: user._id
+        const block = await blockModel.findOne({
+            rooms: {$elemMatch: {$eq: newServiceDetail.room}},
+            services: {$elemMatch: {$eq: newServiceDetail.service}}
         })
-        if (!_serviceDetail) return {
-            error: {
-                message: 'Không thể cập nhật chi tiết dịch vụ !'
-            }
-        }
 
-        const _room = await roomService.GetRoomById(user._id.toString(), serviceDetail.room)
-        if (_room.error) return {
-            error: {
-                message: _room.error.message
-            }
-        }
-
-        const _service = await serviceService.GetServiceById(user._id, serviceDetail.service)
-        if (_service.error) return {
-            error: {
-                message: _service.error.message
-            }
-        }
-
-        await _serviceDetail.updateOne({
-            room: serviceDetail.room,
-            service: serviceDetail.service,
-            quantity: serviceDetail.quantity,
-            serviceAmount: serviceDetail.serviceAmount,
-            ofMonth: serviceDetail.ofMonth
+        if (!block) return throwError({
+            errorCode: Code.SERVICE_NOT_OF_ROOM,
+            message: 'Dịch vụ không phải của phòng !'
         })
-        await _serviceDetail.save()
 
+        const serviceDetail = await GetServiceDetailById(user, newServiceDetail._id)
+        await serviceDetail.updateOne({...newServiceDetail})
         return {}
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.UPDATE_SERVICE_DETAIL_FAILED
+        return throwError(error)
     }
 }
 
 const DeleteServiceDetail = async (user, serviceDetailId) => {
     try {
-        const _serviceDetail = await serviceDetailModel.findOne({
-            _id: serviceDetailId,
-            owner: user._id
-        })
+        const serviceDetail = await GetServiceDetailById(user, serviceDetailId)
 
-        if (!_serviceDetail) return {
-            error: {
-                message: 'Không thể xóa chi tiết dịch vụ !'
-            }
-        }
-
-        await _serviceDetail.updateOne({
+        await serviceDetail.updateOne({
             isDeleted: true
         })
-        await _serviceDetail.save()
-
-        return {}
+        return serviceDetail
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.DELETE_SERVICE_DETAIL_FAILED
+        return throwError(error)
     }
 }
 
 module.exports = {
     CreateServiceDetail,
     GetServiceDetailByRoomAndMonth,
-    GetServiceDetailByOwner,
+    GetServiceDetailsByOwner,
     GetServiceDetailById,
     UpdateServiceDetail,
     DeleteServiceDetail

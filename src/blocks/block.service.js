@@ -1,169 +1,117 @@
-const mongoose = require('mongoose')
-const blockModel = require('./block.model')
-const userModel = require('../users/user.model')
-const roomService = require('../rooms/room.service')
-const serviceService = require('../services/service.service')
-const userService = require('../users/user.service')
 const _ = require('lodash');
 
-const CreateBlock = async (userId, block) =>{
+const {throwError} = require('../../helpers/responseToClient.helper')
+const Code = require('./block.code')
+
+const blockModel = require('./block.model')
+const roomService = require('../rooms/room.service')
+const serviceService = require('../services/service.service')
+
+const CreateBlock = async (user, block) =>{
     try {
-        const blocks = await blockModel.findOne({nameBlock: block.nameBlock})
-        if (blocks) return {
-            error: {
-                message: 'Tên khu trọ đã tổn tại !'
-            }
+        const blocks = await blockModel.findOne({nameBlock: block.nameBlock, owner: user._id})
+        if (blocks) {
+            return throwError({
+                statusCode: 500,
+                errorCode: Code.NAME_BLOCK_EXIST,
+                message: 'Tên khu trọ đã tồn tại !'
+            })
         }
 
         const newBlock = new blockModel(block)
-        newBlock.owner = userId
+        newBlock.owner = user._id
+        await newBlock.save()
 
-        const _user = await userModel.findById(userId)
-        _user.blocks.push(newBlock._id)
-
-        const result = await newBlock.save()
-        if (!result) return {
-            error: result.error
-        }
-        await _user.save()
+        user.blocks.push(newBlock._id)
+        await user.save()
 
         return newBlock
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.CREATE_BLOCK_FAILED
+        return throwError(error)
     }
 }
-const GetBlocksOwner = async (userId) => {
+const GetBlocksOwner = async (user) => {
     try {
-        const user = await userService.GetUserById(userId)
-        if (!user) return {
-            error: {
-                message: 'Người dùng không chính xác !'
-            }
-        }
-
-        const blocks = await blockModel.find({owner: userId, isDeleted: false}).populate('rooms')
+        const blocks = await blockModel.find({owner: user._id})
         return blocks
     } catch (error) {
-        return new Error(error)
+        return throwError({
+            statusCode: 500,
+            errorCode: Code.GET_BLOCKS_BY_OWNER_FAILED,
+            message: 'Lấy danh sách khu trọ thất bại !'
+        })
     }
 }
 
-const GetBlockById = async (userId, blockId) => {
+const GetBlockById = async (user, blockId) => {
     try {
-        const _blocks = await GetBlocksOwner(userId)
-
-        let result = null
-        _blocks.forEach(block => {
-            if (block._id.toString() === blockId && block.isDeleted === false){
-                result = block
-                return
-            }
+        const block = await blockModel.findOne({
+            _id: blockId,
+            owner: user._id
         })
 
-        if (!result) return {
-            error: {
-                message: 'Không tìm thấy khu trọ !'
-            }
-        }
-
-        return result
+        return block
     } catch (error) {
-        return new Error(error)
+        return throwError({
+            statusCode: 500,
+            errorCode: Code.GET_BLOCKS_BY_ID_FAILED,
+            message: 'Lấy thông tin khu trọ thất bại !'
+        })
     }
 }
 
-const UpdateBlock = async (userId, block) =>{
+const UpdateBlock = async (user, newBlock) =>{
     try {
-        const _block = await GetBlockById(userId, block._id)
-        if (_block.error) return {
-            error: {
-                message: _block.error.message
-            }
-        }
+        const block = await GetBlockById(user, newBlock._id)
 
-        const _blocks = await GetBlocksOwner(userId)
-        _blocks.forEach(item => {
-            if (item._id.toString() !== block._id && item.nameBlock.toString() === block.nameBlock) return {
-                error: {
-                    message: 'Tên khu trọ đã tổn tại !'
-                }
-            }
+        const newBlockSameName = await blockModel.findOne({
+            _id: {$ne : newBlock._id},
+            nameBlock: newBlock.nameBlock,
+            owner: user._id
+        })
+        if (!_.isEmpty(newBlockSameName)) return throwError({
+            statusCode: 500,
+            errorCode: Code.NAME_BLOCK_EXIST,
+            message: 'Tên khu trọ đã tồn tại !'
         })
 
+        await block.updateOne({...newBlock})
 
-        await _block.updateOne({
-            nameBlock : block.nameBlock ? block.nameBlock : _block.nameBlock,
-            address : block.address ? block.address : _block.address,
-            description : block.description ? block.description : _block.description,
-            images : block.images ? block.images : _block.images,
-            priceFrom : block.priceFrom ? block.priceFrom : _block.priceFrom,
-            priceTo : block.priceTo ? block.priceTo : _block.priceTo,
-        })
-        await _block.save()
-        return _block
+        return newBlock
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.UPDATE_BLOCK_FAILED
+        return throwError(error)
     }
 }
 
-const DeleteBlock = async (userId, blockId) => {
+const DeleteBlock = async (user, blockId, session) => {
     try {
-        const _block = await blockModel.findById(blockId)
-        if (!_block) return {
-            error: {
-                message: 'Khu trọ không tồn tại !'
-            }
-        }
+        const block = await GetBlockById(user, blockId)
 
-        if (userId !== _block.owner.toString()) return {
-            error: {
-                message: 'Khu trọ không phải của bạn !'
-            }
-        }
+        await roomService.DeleteRooms(user, block.rooms, session)
 
-        await roomService.DeleteRooms(userId, _block.rooms)
-        await serviceService.DeleteServices(userId, _block.services)
-        
+        await serviceService.DeleteServices(userId, block.services, session)
+
         await _block.updateOne({
             isDeleted: true
-        })
-        await _block.save()
+        }, {session})
 
-        return "ok"
+        return block
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.DELETE_BLOCK_FAILED
+        return throwError(error)
     }
 }
 
-const DeleteBlocks = async (userId, blockIds) => {
+const DeleteBlocks = async (user, blockIds, session) => {
     try {
-        const _blocks = await blockModel.find({owner: userId})
-        if (_.isEmpty(_blocks)) return {
-            error: {
-                message: 'Khu trọ không tồn tại !'
-            }
+        for (let i =0; i < blockIds.length; ++i) {
+            await DeleteBlock(user, blockIds[i], session)
         }
-        let _error = true
-        _blocks.forEach(block => {
-            if (_.indexOf(blockIds, block._id.toString()) === -1){
-                _error = false
-                return
-            }
-        })
-
-        if (_error) return {
-            error: {
-                message: 'Danh sách mã khu trọ không đúng !'
-            }
-        }
-
-        blockIds.forEach(blockId => {
-            return DeleteBlock(userId, blockId)
-        })
-
-        return "ok"
+        return {}
     } catch (error) {
-        return new Error(error)
+        return throwError(error)
     }
 }
 

@@ -1,20 +1,17 @@
+const mongoose = require('mongoose')
+
+const {responseToClient} = require('../../helpers/responseToClient.helper')
 const roomService = require('./room.service')
 
 const CreateRoom = async (req, res, next) => {
     try {
-        const {userId} = req
+        const {user} = req
         const room = req.body
 
-        const _result = await roomService.CreateRoom(userId, room)
+        const newRoom = await roomService.CreateRoom(user, room)
 
-        if (_result.error) return res.status(500).json({
-            error: {
-                message: _result.error.message
-            }
-        })
-
-        return res.status(201).json({
-            message: 'Thêm phòng mới thành công !'
+        return responseToClient(res, {
+            data: newRoom
         })
     } catch (error) {
         return next(error)
@@ -22,20 +19,12 @@ const CreateRoom = async (req, res, next) => {
 }
 const GetBlockRooms = async (req, res, next) =>{
     try {
+        const {user} = req
         const {_id} = req.query
-        const {userId} = req
 
-        const _result = await roomService.GetBlockRooms(userId, _id)
-
-        if (_result.error) return res.status(500).json({
-            error: {
-                message: _result.error.message
-            }
-        })
-
-        return res.status(200).json({
-            message: 'Lấy danh sách phòng thành công !',
-            rooms: _result
+        const rooms = await roomService.GetBlockRooms(user, _id)
+        return responseToClient(res, {
+            data: rooms
         })
     } catch (error) {
         return next(error)
@@ -44,19 +33,12 @@ const GetBlockRooms = async (req, res, next) =>{
 
 const GetRoomById = async (req, res, next) =>{
     try {
-        const {userId} = req
+        const {user} = req
         const {_id} = req.query
 
-        const _result = await roomService.GetRoomById(userId, _id)
-        if (_result.error) return res.status(500).json({
-            error: {
-                message: _result.error.message
-            }
-        })
-
-        return res.status(200).json({
-            message: 'Lấy thông phòng thành công !',
-            room: _result
+        const room = await roomService.GetRoomById(user, _id)
+        return responseToClient(res, {
+            data: room
         })
     } catch (error) {
         return next(error)
@@ -67,14 +49,9 @@ const GetRoomByCustomer = async (req, res, next) => {
     try {
         const {user} = req
 
-        const _result = await roomService.GetRoomByCustomer(user)
-        if (_result.error) return res.status(500).json({
-            error: _result.error.message
-        })
-
-        return res.status(200).json({
-            message: 'Lấy danh sách phòng thành công !',
-            rooms: _result
+        const rooms = await roomService.GetRoomByCustomer(user)
+        return responseToClient(res, {
+            data: rooms
         })
     } catch (error) {
         return next(error)
@@ -82,70 +59,67 @@ const GetRoomByCustomer = async (req, res, next) => {
 }
 
 const UpdateRoom = async (req, res, next) => {
+    const session = await mongoose.startSession()
+    session.startTransaction()
+
     try {
-        const {userId} = req
-        const {_id} = req.query
-        const _room = req.body
+        const {user} = req
+        const newRoom = req.body
 
-        if (_id !== _room._id) return res.status(500).json({
-            error: {
-                message: 'Mã phòng không trùng khớp'
-            }
-        })
+        await roomService.UpdateRoom(user, newRoom, session)
 
-        const _result = await roomService.UpdateRoom(userId, _room)
-        if (_result.error) return res.status(500).json({
-            error: {
-                message: _result.error.message
-            }
-        })
-
-        return res.status(200).json({
-            message: 'Cập nhật thông tin phòng thành công !'
+        await session.commitTransaction()
+        return responseToClient(res, {
+            data: newRoom
         })
     } catch (error) {
+        await session.abortTransaction()
         return next(error)
+    } finally {
+        session.endSession()
     }
 }
 
 const DeleteRoom = async (req, res, next) => {
+    const session = await mongoose.startSession()
+    session.startTransaction()
+
     try {
-        const {userId} = req
+        const {user} = req
         const {_id} = req.query
 
-        const result = await roomService.DeleteRoom(userId, _id)
-        if (result.error) return res.status(500).json({
-            error: {
-                message: result.error.message
-            }
-        })
-
-        return res.status(200).json({
-            message: 'Xóa phòng thành công !'
+        const room = await roomService.DeleteRoom(user, _id, session)
+        await session.commitTransaction()
+        return responseToClient(res, {
+            data: room
         })
     } catch (error) {
+        await session.abortTransaction()
         return next(error)
+    } finally {
+        session.endSession()
     }
 }
 
 const DeleteRooms = async (req, res, next) => {
+    const session = await mongoose.startSession()
+    session.startTransaction()
+
     try {
-        const {userId} = req
+        const {user} = req
         const {_ids} = req.body
 
-        const _result = await roomService.DeleteRooms(userId, _ids)
-        console.log("con", _result)
-        if (_result.error) return res.status(500).json({
-            error: {
-                message: _result.error.message
-            }
-        })
+        await roomService.DeleteRooms(user, _ids, session)
 
-        return res.status(200).json({
-            message: 'Xóa phòng thành công !'
+        await session.commitTransaction()
+        return responseToClient(res, {
+            data: _ids
         })
     } catch (error) {
+        await session.abortTransaction()
         return next(error)
+    } finally {
+        session.endSession()
     }
 }
 

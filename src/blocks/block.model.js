@@ -32,8 +32,10 @@ const schema = new Schema({
     }],
     services: [{
         type: Schema.Types.ObjectId,
-        ref: 'room'
+        ref: 'service'
     }]
+},{
+    timestamps: true
 })
 
 module.exports = mongoose.model('block', schema)

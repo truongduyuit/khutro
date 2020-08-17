@@ -10,6 +10,7 @@ require('./configs/mongodb.config')
 const routers = require('./src/routers')
 
 // Middleware
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json())
 app.use(logger('dev'))
 app.use(express.static(`public`))
@@ -27,13 +28,15 @@ app.use((req, res, next) => {
 // error handler function
 app.use((err, req, res, next) => {
     const error = app.get('env') === 'development' ? err : {}
-    const status = err.status || 500
-
-    // response to client
-    return res.status(status).json({
-        error : {
-            message : error.message
-        }
+    
+    return res.status(error.statusCode).json({
+        success: false,
+        error: {
+            statusCode: error.statusCode,
+            errorCode: error.errorCode,
+            message: error.message
+        },
+        options: error.options
     })
 })
 
