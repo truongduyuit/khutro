@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const {responseToClient} = require('../../helpers/responseToClient.helper')
+const logger = require('../../helpers/logger')
 const billService = require('./bill.service')
 
 const CreateBill = async (req, res, next) => {
@@ -12,6 +13,7 @@ const CreateBill = async (req, res, next) => {
 
         const newBill = await billService.CreateBill(user, bill, session)
 
+        logger.log('info', req.originalUrl)
         await session.commitTransaction()
         return responseToClient(res, {
             data: newBill
@@ -30,6 +32,7 @@ const GetBillByOwner = async (req, res, next) => {
 
         const bills = await billService.GetBillByOwner(user)
 
+        logger.log('info', req.originalUrl)
         return responseToClient(res, {
             data: bills
         })
@@ -44,6 +47,7 @@ const GetBillByCustomer = async (req, res, next) => {
 
         const bills = await billService.GetBillByCustomer(user)
 
+        logger.log('info', req.originalUrl)
         return responseToClient(res, {
             data: bills
         })
@@ -58,7 +62,8 @@ const GetBillByRoom = async (req, res, next) => {
 
         const bills = await billService.GetBillByRoom(user, _id)
 
-       return responseToClient(res, {
+        logger.log('info', req.originalUrl)
+        return responseToClient(res, {
             data: bills
         })
     } catch (error) {
@@ -72,6 +77,7 @@ const GetBillById = async (req, res, next) => {
         const {_id} = req.query
 
         const bill = await billService.GetBillById(user, _id)
+        logger.log('info', req.originalUrl)
         return responseToClient(res, {
             data: bill
         })
@@ -90,6 +96,7 @@ const UpdateBill = async (req, res, next) => {
 
         await billService.UpdateBill(user, newBill, session)
 
+        logger.log('info', req.originalUrl)
         await session.commitTransaction()
         return responseToClient(res, {
             data: newBill
@@ -112,6 +119,7 @@ const DeleteBill = async (req, res, next) => {
 
         const bill = await billService.DeleteBill(user, _id, session)
 
+        logger.log('info', req.originalUrl)
         await session.commitTransaction()
         return responseToClient(res, {
             data: bill

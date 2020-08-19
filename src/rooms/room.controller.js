@@ -109,11 +109,11 @@ const DeleteRooms = async (req, res, next) => {
         const {user} = req
         const {_ids} = req.body
 
-        await roomService.DeleteRooms(user, _ids, session)
+        const rooms = await roomService.DeleteRooms(user, _ids, session)
 
         await session.commitTransaction()
         return responseToClient(res, {
-            data: _ids
+            data: rooms
         })
     } catch (error) {
         await session.abortTransaction()

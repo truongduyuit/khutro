@@ -2,7 +2,8 @@
 const express = require('express')
 const app = express()
 const bodyParser = require('body-parser')
-const logger = require('morgan')
+const logger = require('./helpers/logger')
+const compression = require('compression')
 
 // Modules
 const configs = require('./configs/app.config')
@@ -12,8 +13,8 @@ const routers = require('./src/routers')
 // Middleware
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json())
-app.use(logger('dev'))
 app.use(express.static(`public`))
+app.use(compression())
 
 // routers
 app.use('/api', routers)
@@ -28,7 +29,8 @@ app.use((req, res, next) => {
 // error handler function
 app.use((err, req, res, next) => {
     const error = app.get('env') === 'development' ? err : {}
-    
+
+    logger.log('error', req.originalUrl + ` | ${error.errorCode}`)
     return res.status(error.statusCode).json({
         success: false,
         error: {
@@ -43,7 +45,7 @@ app.use((err, req, res, next) => {
 // Server
 const port = app.get('port') || configs.PORT
 app.listen(port, () => {
-    console.log("Server đang mở ở port " + port)
+    logger.log('debug' ,"Server đang mở ở port " + port)
 })
 
 module.exports = app

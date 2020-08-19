@@ -1,6 +1,3 @@
-const mongoose = require('mongoose')
-const _ = require('lodash')
-
 const {throwError} = require('../../helpers/responseToClient.helper')
 const Code = require('./service.code')
 
@@ -35,13 +32,12 @@ const CreateService = async (user , service) => {
 
 const GetBlockServices = async (user, blockId) => {
     try {
-        const block = await blockModel.findOne({
-            _id: blockId,
-            owner: user._id
-        })
-
         const services = await serviceModel.find({
-            block: block._id
+            $and: [{
+                block: blockId
+            }, {
+                block: {$in: user.blocks}
+            }]
         })
         return services
     } catch (error) {
@@ -55,11 +51,9 @@ const GetBlockServices = async (user, blockId) => {
 
 const GetServiceById = async (user, serviceId) => {
     try {
-        const service = await serviceModel.findById(serviceId)
-
-        await blockModel.findOne({
-            _id: service.block,
-            block: {$in: user.blocks}
+        const service = await serviceModel.findOne({
+            _id: serviceId,
+            block : {$in: user.blocks}
         })
 
         return service
@@ -131,11 +125,12 @@ const DeleteService = async (user, serviceId, session) => {
 
 const DeleteServices = async (user, serviceIds, session) => {
     try {
+        const deleteServicePromises = []
         for (let i =0; i < serviceIds.length; i++){
-            await DeleteService(user, serviceIds[i], session)
+            const deleteServicePromise = DeleteService(user, serviceIds[i], session)
+            deleteServicePromises.push(deleteServicePromise)
         }
-
-        return {}
+        return await Promise.all(deleteServicePromises)
     } catch (error) {
         return throwError(error)
     }

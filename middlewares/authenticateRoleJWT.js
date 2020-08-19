@@ -10,11 +10,11 @@ const AuthenticateRoleJWT = roles => {
 
         if (authHeader){
             const token = authHeader.split(/\s+/).pop() || ''
-            try {
-                jwt.verify(token, configs.SECRET_KEY,async (err, data) => {
+            jwt.verify(token, configs.SECRET_KEY, async (err, data) => {
+                try {
                     if (err) return throwError({
                         statusCode: 403,
-                        errorCode: 'AUTHORIZATION_FAILED',
+                        errorCode: 'AUTHENTICATION_FAILED',
                         message: 'Xác thực người dùng không chính xác !'
                     })
 
@@ -32,10 +32,10 @@ const AuthenticateRoleJWT = roles => {
                     console.log('Xác thực thành công !')
                     req.user = user
                     next()
-                })
-            } catch (error) {
-                return next(error)
-            }
+                } catch (error) {
+                    return next(error)
+                }
+            })
         }else {
             try {
                 throwError({
