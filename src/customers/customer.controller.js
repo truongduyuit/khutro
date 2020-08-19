@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
 
 const {responseToClient} = require('../../helpers/responseToClient.helper')
+const logger = require('../../helpers/logger')
 const customerService = require('./customer.service')
 
 const CreateCustomer = async (req, res, next) => {
@@ -9,6 +10,7 @@ const CreateCustomer = async (req, res, next) => {
         const customer = req.body
 
         const newCustomer = await customerService.CreateCustomer(user, customer)
+        logger.log('info', req.originalUrl)
         return responseToClient(res, {
             data: newCustomer
         })
@@ -23,7 +25,7 @@ const GetCustomersByOwner = async (req, res, next) => {
         const customer = req.body
 
         const customers = await customerService.GetCustomersByOwner(user, customer)
-
+        logger.log('info', req.originalUrl)
         return responseToClient(res, {
             data: customers
         })
@@ -38,6 +40,7 @@ const GetCustomerById = async (req, res, next) => {
         const {_id} = req.query
 
         const customer = await customerService.GetCustomerById(user, _id)
+        logger.log('info', req.originalUrl)
         return responseToClient(res, {
             data: customer
         })
@@ -55,6 +58,7 @@ const UpdateCustomer = async (req, res, next) => {
 
         await customerService.UpdateCustomer(user, newCustomer,session)
 
+        logger.log('info', req.originalUrl)
         await session.commitTransaction()
         return responseToClient(res, {
             data: newCustomer
@@ -75,6 +79,7 @@ const DeleteCustomer = async (req, res, next) => {
         const {_id} = req.query
 
         const customer = await customerService.DeleteCustomer(user, _id, session)
+        logger.log('info', req.originalUrl)
         await session.commitTransaction()
         return responseToClient(res, {
             data: customer
@@ -95,10 +100,11 @@ const DeleteCustomers = async (req, res, next) => {
         const {user} = req
         const {_ids} = req.body
 
-        await customerService.DeleteCustomers(user, _ids, session)
+        const customers = await customerService.DeleteCustomers(user, _ids, session)
+        logger.log('info', req.originalUrl)
         await session.commitTransaction()
         return responseToClient(res, {
-            data: _ids
+            data: customers
         })
     } catch (error) {
         await session.abortTransaction()

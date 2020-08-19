@@ -1,5 +1,3 @@
-const _ = require('lodash');
-
 const {throwError} = require('../../helpers/responseToClient.helper')
 const Code = require('./block.code')
 
@@ -9,8 +7,8 @@ const serviceService = require('../services/service.service')
 
 const CreateBlock = async (user, block) =>{
     try {
-        const blocks = await blockModel.findOne({nameBlock: block.nameBlock, owner: user._id})
-        if (blocks) {
+        const blockSameName = await blockModel.findOne({nameBlock: block.nameBlock, owner: user._id})
+        if (blockSameName) {
             return throwError({
                 statusCode: 500,
                 errorCode: Code.NAME_BLOCK_EXIST,
@@ -50,14 +48,15 @@ const GetBlockById = async (user, blockId) => {
             _id: blockId,
             owner: user._id
         })
-
-        return block
-    } catch (error) {
-        return throwError({
+        if (!block ) return throwError({
             statusCode: 500,
             errorCode: Code.GET_BLOCKS_BY_ID_FAILED,
             message: 'Lấy thông tin khu trọ thất bại !'
         })
+
+        return block
+    } catch (error) {
+        return throwError(error)
     }
 }
 
@@ -70,7 +69,7 @@ const UpdateBlock = async (user, newBlock) =>{
             nameBlock: newBlock.nameBlock,
             owner: user._id
         })
-        if (!_.isEmpty(newBlockSameName)) return throwError({
+        if (newBlockSameName) return throwError({
             statusCode: 500,
             errorCode: Code.NAME_BLOCK_EXIST,
             message: 'Tên khu trọ đã tồn tại !'
@@ -89,13 +88,13 @@ const DeleteBlock = async (user, blockId, session) => {
     try {
         const block = await GetBlockById(user, blockId)
 
-        await roomService.DeleteRooms(user, block.rooms, session)
-
-        await serviceService.DeleteServices(userId, block.services, session)
-
-        await _block.updateOne({
-            isDeleted: true
-        }, {session})
+        await Promise.all([
+            roomService.DeleteRooms(user, block.rooms, session),
+            serviceService.DeleteServices(user, block.services, session),
+            block.updateOne({
+                isDeleted: true
+            }, {session})
+        ])
 
         return block
     } catch (error) {
@@ -106,10 +105,12 @@ const DeleteBlock = async (user, blockId, session) => {
 
 const DeleteBlocks = async (user, blockIds, session) => {
     try {
+        const deleteBlockPromises = []
         for (let i =0; i < blockIds.length; ++i) {
-            await DeleteBlock(user, blockIds[i], session)
+            const deleteBlockPromise = DeleteBlock(user, blockIds[i], session)
+            deleteBlockPromises.push(deleteBlockPromise)
         }
-        return {}
+        return await Promise.all(deleteBlockPromises)
     } catch (error) {
         return throwError(error)
     }

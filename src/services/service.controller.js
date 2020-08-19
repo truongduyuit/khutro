@@ -96,11 +96,11 @@ const DeleteServices = async (req, res, next) => {
         const {user} = req
         const {_ids} = req.body
 
-        await serviceService.DeleteServices(user, _ids, session)
+        const services = await serviceService.DeleteServices(user, _ids, session)
 
         await session.commitTransaction()
         return responseToClient(res, {
-            data: _ids
+            data: services
         })
     } catch (error) {
         await session.abortTransaction();

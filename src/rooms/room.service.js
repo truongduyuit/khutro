@@ -1,12 +1,9 @@
-const mongoose = require('mongoose')
-
 const {throwError} = require('../../helpers/responseToClient.helper')
 const Code = require('./room.code')
 
 const roomModel = require('./room.model')
 const blockModel = require('../blocks/block.model')
 const customerService = require('../customers/customer.service')
-const userModel = require('../users/user.model')
 
 const CreateRoom = async (user, room) => {
     try {
@@ -34,12 +31,13 @@ const CreateRoom = async (user, room) => {
 }
 const GetBlockRooms = async (user, blockId) => {
     try {
-        await blockModel.findOne({
-            _id: blockId,
-            owner: user._id
+        const rooms = await roomModel.find({
+            $and: [{
+                block: {$eq: blockId}
+            }, {
+                block: {$in: user.blocks}
+            }]
         })
-
-        const rooms = await roomModel.find({block: blockId})
         return rooms
     } catch (error) {
         return throwError({
@@ -51,12 +49,11 @@ const GetBlockRooms = async (user, blockId) => {
 
 const GetRoomById = async (user, roomId) => {
     try {
-        const room = await roomModel.findOne({_id: roomId})
-
-        await blockModel.findOne({
-            _id: room.block,
-            owner: user._id
+        const room = await roomModel.findOne({
+            _id: roomId,
+            block: {$in: user.blocks}
         })
+
         return room
     } catch (error) {
         return throwError({
@@ -123,11 +120,12 @@ const DeleteRoom = async (user, roomId, session) => {
     try {
         const room = await GetRoomById(user, roomId)
 
-        await customerService.DeleteCustomers(user, room.customers, session)
-
-        await room.updateOne({
-            isDeleted: true
-        }, {session})
+        await Promise.all([
+            customerService.DeleteCustomers(user, room.customers, session),
+            room.updateOne({
+                isDeleted: true
+            }, {session})
+        ])
 
         return room
     } catch (error) {
@@ -138,11 +136,13 @@ const DeleteRoom = async (user, roomId, session) => {
 
 const DeleteRooms = async (user, roomIds, session) => {
     try {
+        const deleteRoomPromises = []
         for (let i =0; i < roomIds.length; i++){
-            await DeleteRoom(user, roomIds[i], session)
+            const deleteRoomPromise = DeleteRoom(user, roomIds[i], session)
+            deleteRoomPromises.push(deleteRoomPromise)
         }
 
-        return {}
+        return await Promise.all(deleteRoomPromises)
     } catch (error) {
         return throwError(error)
     }

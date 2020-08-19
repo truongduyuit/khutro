@@ -1,4 +1,4 @@
-const _ = require('lodash')
+const {isEmpty} = require('lodash')
 
 const {throwError} = require('../../helpers/responseToClient.helper')
 const Code = require('./bill.code')
@@ -9,7 +9,7 @@ const serviceDetailModel = require('../service-details/service-detail.model')
 
 const CreateBill = async (user, bill, session) => {
     try {
-        if (_.isEmpty(bill.customers)) {
+        if (isEmpty(bill.customers)) {
             return throwError({
                 statusCode: 500,
                 errorCode: Code.BILL_MUST_LEAST_1_CUSTOMER,
@@ -17,12 +17,12 @@ const CreateBill = async (user, bill, session) => {
             })
         }
         for (let i =0; i < bill.customers.length; ++i) {
-            let user = await userModel.findOne({
+            let customer = await userModel.findOne({
                 _id: bill.customers[i],
                 room: bill.room
             })
 
-            if (!user) return throwError({
+            if (!customer) return throwError({
                 statusCode: 500,
                 errorCode: Code.CUSTOMER_NOT_IN_ROOM,
                 message: 'Khách hàng không đúng !'
@@ -48,7 +48,7 @@ const CreateBill = async (user, bill, session) => {
                 if (bill.roomTotalAmount % bill.roomPrice !== 0) return throwError({
                     statusCode: 500,
                     errorCode: Code.ROOM_TOTAL_AMOUNT_FALSE,
-                    message: 'Tổng tiền phòng phải là bội số của giá phòng'
+                    message: 'Tổng tiền phòng phải là bội số của giá phòng !'
                 })
 
                 const quantityCustomers = bill.customers.length
@@ -150,7 +150,6 @@ const UpdateBill = async (user, newBill, session) => {
             message: 'Không được chỉnh sửa hóa đơn đã thanh toán !'
         })
 
-
         if (bill.roomTotalAmount !== 0){
             if (bill.roomTotalAmount % bill.roomPrice !== 0) return throwError({
                     statusCode: 500,
@@ -172,9 +171,12 @@ const UpdateBill = async (user, newBill, session) => {
             }
         }
 
+        const serviceDetailPromises = []
         for (let i =0 ; i < bill.services.length; ++i){
-            await serviceDetailModel.findByIdAndUpdate(bill.services[i], {isPay: true}, {session})
+            const serviceDetailPromise = serviceDetailModel.findByIdAndUpdate(bill.services[i], {isPay: true}, {session})
+            serviceDetailPromise.push(serviceDetailPromise)
         }
+        await Promise.all(serviceDetailPromises)
 
         await bill.updateOne({
             isPay: true,
@@ -217,9 +219,12 @@ const DeleteBill = async (user, billId, session) => {
                 }
             }
 
+            const serviceDetailPromises = []
             for (let i =0 ; i < bill.services.length; ++i){
-                await serviceDetailModel.findByIdAndUpdate(bill.services[i], {isPay: false}, {session})
+                const serviceDetailPromise = serviceDetailModel.findByIdAndUpdate(bill.services[i], {isPay: false}, {session})
+                serviceDetailPromises.push(serviceDetailPromise)
             }
+            await Promise.all(serviceDetailPromises)
         }
 
         await bill.updateOne({
@@ -232,6 +237,7 @@ const DeleteBill = async (user, billId, session) => {
         return throwError(error)
     }
 }
+
 module.exports = {
     CreateBill,
     GetBillByOwner,

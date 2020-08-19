@@ -1,5 +1,5 @@
 require('dotenv').config()
-const DATABASE_HOST = 'mongodb://DESKTOP-JNE0RP1:27017,DESKTOP-JNE0RP1:27018,DESKTOP-JNE0RP1:27019/khutro?replicaSet=rs'
+const DATABASE_HOST = process.env.DATABASE_HOST
 
 const EMAIL_ACCOUNT = {
   email: process.env.EMAIL_USERNAME,

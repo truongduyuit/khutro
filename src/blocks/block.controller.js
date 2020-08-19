@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
 
 const {responseToClient} = require('../../helpers/responseToClient.helper')
+const logger = require('../../helpers/logger')
 const blockService = require('./block.service')
 
 const CreateBlock = async (req, res, next) => {
@@ -9,6 +10,7 @@ const CreateBlock = async (req, res, next) => {
         const block = req.body
 
         const newBlock = await blockService.CreateBlock(user, block)
+        logger.log('info', req.originalUrl)
         return responseToClient(res, {
             statusCode: 201,
             data: newBlock,
@@ -22,6 +24,7 @@ const GetBlocksOwner = async (req, res, next) => {
         const {user} = req
         const blocks = await blockService.GetBlocksOwner(user)
 
+        logger.log('info', req.originalUrl)
         return responseToClient(res, {
             data: blocks
         })
@@ -37,6 +40,7 @@ const GetBlockById = async (req, res, next) => {
 
         const block = await blockService.GetBlockById(user, _id)
 
+        logger.log('info', req.originalUrl)
         return responseToClient(res, {
             data: block
         })
@@ -51,6 +55,7 @@ const UpdateBlock = async (req, res, next) => {
         const newBlock = req.body
 
         await blockService.UpdateBlock(user, newBlock)
+        logger.log('info', req.originalUrl)
         return responseToClient(res, {
             data: newBlock
         })
@@ -62,13 +67,13 @@ const UpdateBlock = async (req, res, next) => {
 const DeleteBlock = async (req, res, next) => {
     const session = await mongoose.startSession()
     session.startTransaction()
-
     try {
         const {user} = req
         const {_id} = req.query
 
         const block = await blockService.DeleteBlock(user, _id, session)
 
+        logger.log('info', req.originalUrl)
         await session.commitTransaction()
         return responseToClient(res, {
             data: block
@@ -84,15 +89,15 @@ const DeleteBlock = async (req, res, next) => {
 const DeleteBlocks = async (req, res, next) => {
     const session = await mongoose.startSession()
     session.startTransaction()
-
     try {
         const {user} = req
         const {_ids} = req.body
 
-        await blockService.DeleteBlocks(user, _ids, session)
+        const blocks = await blockService.DeleteBlocks(user, _ids, session)
+        logger.log('info', req.originalUrl)
         await session.commitTransaction()
         return responseToClient(res, {
-            data: _ids
+            data: blocks
         })
     }  catch (error) {
         await session.abortTransaction()
