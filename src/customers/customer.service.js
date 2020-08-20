@@ -8,7 +8,7 @@ const roomModel = require('../rooms/room.model')
 const userModel = require('../users/user.model')
 const blockModel = require('../blocks/block.model')
 
-const CreateCustomer = async (user, customer) => {
+module.exports.CreateCustomer = async (user, customer) => {
     try {
         if (customer.email) {
             let user = await userModel.findOne({email: customer.email, role: USER_ROLE_ENUM.OWNER})
@@ -48,7 +48,7 @@ const CreateCustomer = async (user, customer) => {
     }
 }
 
-const GetCustomersByOwner = async (user) => {
+module.exports.GetCustomersByOwner = async (user) => {
     try {
         const userRooms = await roomModel.find({
             block: {$in: user.blocks}
@@ -72,7 +72,7 @@ const GetCustomersByOwner = async (user) => {
     }
 }
 
-const GetCustomerById = async (user, customerId) => {
+module.exports.GetCustomerById = async (user, customerId) => {
     try {
         const customers = await GetCustomersByOwner(user)
 
@@ -91,7 +91,7 @@ const GetCustomerById = async (user, customerId) => {
     }
 }
 
-const UpdateCustomer = async (user, newCustomer, session) => {
+module.exports.UpdateCustomer = async (user, newCustomer, session) => {
     try {
         const customer = await GetCustomerById(user, newCustomer._id)
 
@@ -134,7 +134,7 @@ const UpdateCustomer = async (user, newCustomer, session) => {
     }
 }
 
-const DeleteCustomer = async (user, customerId, session) => {
+module.exports.DeleteCustomer = async (user, customerId, session) => {
     try {
         const customer = await GetCustomerById(user, customerId)
 
@@ -149,7 +149,7 @@ const DeleteCustomer = async (user, customerId, session) => {
     }
 }
 
-const DeleteCustomers = async (user, customerIds, session) => {
+module.exports.DeleteCustomers = async (user, customerIds, session) => {
     try {
         const deleteCustomerPromises = []
         for (let i =0; i < customerIds.length; i++){
@@ -160,13 +160,4 @@ const DeleteCustomers = async (user, customerIds, session) => {
     } catch (error) {
         return throwError(error)
     }
-}
-
-module.exports = {
-    CreateCustomer,
-    GetCustomersByOwner,
-    GetCustomerById,
-    UpdateCustomer,
-    DeleteCustomer,
-    DeleteCustomers
 }

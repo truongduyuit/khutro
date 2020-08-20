@@ -5,7 +5,7 @@ const roomModel = require('./room.model')
 const blockModel = require('../blocks/block.model')
 const customerService = require('../customers/customer.service')
 
-const CreateRoom = async (user, room) => {
+module.exports.CreateRoom = async (user, room) => {
     try {
         const rooms = await GetBlockRooms(user, room.block)
         for (let i = 0; i < rooms.length; ++i){
@@ -29,7 +29,7 @@ const CreateRoom = async (user, room) => {
         return throwError(error)
     }
 }
-const GetBlockRooms = async (user, blockId) => {
+module.exports.GetBlockRooms = async (user, blockId) => {
     try {
         const rooms = await roomModel.find({
             $and: [{
@@ -47,7 +47,7 @@ const GetBlockRooms = async (user, blockId) => {
     }
 }
 
-const GetRoomById = async (user, roomId) => {
+module.exports.GetRoomById = async (user, roomId) => {
     try {
         const room = await roomModel.findOne({
             _id: roomId,
@@ -63,7 +63,7 @@ const GetRoomById = async (user, roomId) => {
     }
 }
 
-const GetRoomByCustomer = async (user) => {
+module.exports.GetRoomByCustomer = async (user) => {
     try {
         const rooms = await roomModel.find({
             customers: {$elemMatch: {$eq: user._id}}
@@ -77,7 +77,7 @@ const GetRoomByCustomer = async (user) => {
         })
     }
 }
-const UpdateRoom = async (user, newRoom, session) => {
+module.exports.UpdateRoom = async (user, newRoom, session) => {
     try {
         const rooms = await GetBlockRooms(user, newRoom.block)
         for (let i = 0; i < rooms.length; ++i){
@@ -116,7 +116,7 @@ const UpdateRoom = async (user, newRoom, session) => {
     }
 }
 
-const DeleteRoom = async (user, roomId, session) => {
+module.exports.DeleteRoom = async (user, roomId, session) => {
     try {
         const room = await GetRoomById(user, roomId)
 
@@ -134,7 +134,7 @@ const DeleteRoom = async (user, roomId, session) => {
     }
 }
 
-const DeleteRooms = async (user, roomIds, session) => {
+module.exports.DeleteRooms = async (user, roomIds, session) => {
     try {
         const deleteRoomPromises = []
         for (let i =0; i < roomIds.length; i++){
@@ -146,14 +146,4 @@ const DeleteRooms = async (user, roomIds, session) => {
     } catch (error) {
         return throwError(error)
     }
-}
-
-module.exports = {
-    CreateRoom,
-    GetBlockRooms,
-    GetRoomById,
-    GetRoomByCustomer,
-    UpdateRoom,
-    DeleteRoom,
-    DeleteRooms
 }

@@ -3,62 +3,45 @@ const mailHelper = require('../../helpers/mail.helper')
 const tokenHelper = require('../../helpers/token.helper')
 
 const userModel = require('./user.model')
+const Code = require('./user.code')
+const {throwError} = require('../../helpers/responseToClient.helper')
 
-const Register = async (email, password) => {
+module.exports.Register = async (email, password) => {
   try {
-    if (password.length < 6)
-        return {
-            error: {
-                message : 'Mật khẩu phải tối thiếu 6 ký tự !'
-            }
-        }
-    if (password.length >= 32)
-        return {
-            error: {
-                message : 'Mật khẩu tối đa 32 ký tự !'
-            }
-        }
-
-    let user = await userModel.findOne({email})
-    if (user) {
-        return {
-            error: {
-                message: 'Email đã được sử dụng !'
-            }
-        }
-    }
-
-    const newUser = new userModel({
-      email,
-      password
+    if (password.length < 6) return throwError({
+        errorCode: Code.PASSWORD_LEAST_6_CHARACTERS,
+        message : 'Mật khẩu phải tối thiếu 6 ký tự !'
+    })
+    if (password.length >= 32) return throwError({
+        errorCode: Code.PASSWORD_MAX_32_CHARACTERS,
+        message : 'Mật khẩu tối đa 32 ký tự !'
     })
 
+    let user = await userModel.findOne({email})
+    if (user) return throwError({
+        errorCode: Code.EMAIL_IS_EXIST,
+        message: 'Email đã được sử dụng !'
+    })
+
+    const newUser = new userModel({email, password})
     const newPassword = await passwordHelper.HashPassword(password)
     newUser.password = newPassword
 
     await newUser.save()
-    user = await userModel.findOne({email})
-    if (!user) return {
-        error: {
-            message: 'Đăng ký tài khoản thất bại !'
-        }
+    return newUser
+    } catch (error) {
+        if (!error.errorCode) error.errorCode = Code.CREATE_USER_FAILED
+        return throwError(error)
     }
-
-    return user
-  } catch (error) {
-    return new Error(error)
-  }
 }
 
-const Login = async (email, password) => {
+module.exports.Login = async (email, password) => {
   try {
     const user = await userModel.findOne({email})
-    if (!user){
-      return {
-        error: 'Email không tồn tại !',
-        status: false
-      }
-    }
+    if (!user) return throwError({
+        errorCode: Code.EMAIL_IS_EXIST,
+        message: 'Email không tồn tại !'
+    })
 
     const result = await passwordHelper.ComparePassword(password, user.password)
     if (result) {
@@ -76,10 +59,13 @@ const Login = async (email, password) => {
             `
             )
 
-            return {
-                error: 'Hãy vào gmail để xác thực tài khoản',
-                link: `http://localhost:3001/api/user/confirm/${newToken}`
-            }
+            return throwError({
+                errorCode: Code.EMAIL_IS_EXIST,
+                message: 'Hãy vào gmail để xác thực tài khoản !',
+                options: {
+                    link: `http://localhost:3001/api/user/confirm/${newToken}`
+                }
+            })
         }
 
         const token = await tokenHelper.GenerateToken(user._id)
@@ -89,118 +75,107 @@ const Login = async (email, password) => {
         }
     }
 
-    return {
-        error: {
-            message: 'Email hoặc mật khẩu không chính xác !'
-        }
-    }
+    return throwError({
+        errorCode: Code.EMAIL_OR_PASSWORD_FALSE,
+        message: 'Email hoặc mật khẩu không chính xác !'
+    })
   } catch (error) {
-    return new Error(error)
+    if (!error.errorCode) error.errorCode = Code.LOGIN_FAILED
+    return throwError(error)
   }
 }
 
-const ConfirmUser = async token => {
+module.exports.ConfirmUser = async token => {
     try {
         const {payload} = await tokenHelper.DecodePayload(token)
         const user = await userModel.findOne({email: payload.email})
 
-        if (user.confirmed) return {
-            error: {
-                message: 'Email đã được xác thực'
-            }
-        }
-
-        await userModel.findByIdAndUpdate(payload._id, {confirmed: true})
-        return {
-            token
-        }
-    } catch (error) {
-        return new Error(error)
-    }
-}
-
-const ChangePassword = async (userId, password, newPassword) => {
-    try {
-        const user = await userModel.findById(userId)
-        if (!user) return {
-            error: {
-                message: 'Người dùng không tồn tại !'
-            }
-        }
-
-        const result = await passwordHelper.ComparePassword(password, user.password)
-        if (!result) return {
-                error: {
-                    message: 'Mật khẩu hiện tại không chính xác !'
-                }
-            }
-        const newPasswordHashed = await passwordHelper.HashPassword(newPassword)
-        await user.updateOne({password: newPasswordHashed})
-        return {
-            message: "Cập nhật mật khẩu thành công !"
-        }
-    } catch (error) {
-        return new Error(error)
-    }
-}
-
-const ChangeInfo = async (userId, info) => {
-    try {
-        const _user =await userModel.findById(userId)
-
-        if (!_user) return {
-            error: {
-                message: 'Người dùng không tồn tại !'
-            }
-        }
-
-        await _user.updateOne({
-            fullName: info.fullName ? info.fullName : _user.fullName,
-            address: info.address ? info.address : _user.address,
-            phoneNumber: info.phoneNumber ? info.phoneNumber : _user.phoneNumber
+        if (user.confirmed) return throwError({
+            errorCode: Code.EMAIL_IS_CONFIRMED,
+            message: 'Email đã được xác thực !'
         })
 
-        return _user
+        await userModel.findByIdAndUpdate(payload._id, {confirmed: true})
+        return token
     } catch (error) {
-        return {
-            error: {
-                message: 'Cập nhật thông tin thất bại !'
-            }
-        }
+        if (!error.errorCode) error.errorCode = Code.CONFIRM_EMAIL_FAILED
+        return throwError(error)
     }
 }
 
-const GetUserById = async userId => {
+module.exports.ChangePassword = async (userId, password, newPassword) => {
+    try {
+        const user = await userModel.findById(userId)
+        if (!user) return throwError({
+            errorCode: Code.USER_NOT_EXIST,
+            message: 'Người dùng không tồn tại !'
+        })
+
+
+        const result = await passwordHelper.ComparePassword(password, user.password)
+        if (!result)  return throwError({
+            errorCode: Code.CURRENT_PASSWORD_FALSE,
+            message: 'Mật khẩu hiện tại không chính xác !'
+        })
+
+        const newPasswordHashed = await passwordHelper.HashPassword(newPassword)
+        await user.updateOne({password: newPasswordHashed})
+        return {}
+    } catch (error) {
+        if (!error.errorCode) error.errorCode = Code.CHANGE_PASSWORD_FALSE
+        return throwError(error)
+    }
+}
+
+module.exports.ChangeInfo = async (userId, info) => {
     try {
         const user = await userModel.findById(userId)
 
-        if (!user) return {
-            error: {
-                message: 'Người dùng không tồn tại'
-            }
-        }
+        if (!user) return throwError({
+            errorCode: Code.USER_NOT_EXIST,
+            message: 'Người dùng không tồn tại !'
+        })
+
+        await user.updateOne({
+            fullName: info.fullName ? info.fullName : user.fullName,
+            address: info.address ? info.address : user.address,
+            phoneNumber: info.phoneNumber ? info.phoneNumber : user.phoneNumber
+        })
 
         return user
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.CHANGE_PASSWORD_FALSE
+        return throwError(error)
     }
 }
 
-const CustomerLogin = async (payload) => {
+module.exports.GetUserById = async userId => {
     try {
-        const _user = await userModel.findOne({
-            email: payload.email,
-            role: 'customer'
+        const user = await userModel.findById(userId)
+
+        if (!user) return throwError({
+            errorCode: Code.USER_NOT_EXIST,
+            message: 'Người dùng không tồn tại !'
         })
 
-        if (!_user) return {
-            error: {
-                message : 'Email không tồn tại !'
-            }
-        }
+        return user
+    } catch (error) {
+        if (!error.errorCode) error.errorCode = Code.GET_USER_FAILED
+        return throwError(error)
+    }
+}
+
+module.exports.CustomerLogin = async (payload) => {
+    try {
+        const user = await userModel.findOne({ email: payload.email, role: 'customer' })
+
+        if (!user) return throwError({
+            errorCode: Code.EMAIL_IS_EXIST,
+            message: 'Email không tồn tại !'
+        })
 
         if (!payload.password) {
-            if (!_user.password) {
+            if (!user.password) {
 
                 const newPassword = (Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000).toString()
                 await mailHelper.sendMail(
@@ -213,45 +188,28 @@ const CustomerLogin = async (payload) => {
                 `
                 )
 
-                await _user.updateOne({
+                await user.updateOne({
                     password: await passwordHelper.HashPassword(newPassword),
                     confirmed: true
                 })
-                await _user.save()
+                await user.save()
 
-                return {
-                    error: {
-                        message: 'Vào mail để nhận password mới !'
-                    }
-                }
+                return throwError({
+                    errorCode: Code.GET_PASSWORD_IN_MAIL,
+                    message: 'Vào mail để nhận password mới !'
+                })
             }
 
-            return {
-                error: {
-                    message: 'Bạn đã có mật khẩu đăng nhập !'
-                }
-            }
+                return throwError({
+                    errorCode: Code.LOGIN_FAILED,
+                    message: 'Đăng nhập thất bại !'
+                })
         }
 
-        const _result = await Login(payload.email, payload.password)
-        if (_result.error) return {
-            error: {
-                message: _result.error.message
-            }
-        }
-
-        return _result
+        const roleAndToken = await Login(payload.email, payload.password)
+        return roleAndToken
     } catch (error) {
-        return new Error(error)
+        if (!error.errorCode) error.errorCode = Code.LOGIN_FAILED
+        return throwError(error)
     }
-}
-
-module.exports = {
-  Register,
-  Login,
-  ConfirmUser,
-  ChangePassword,
-  ChangeInfo,
-  GetUserById,
-  CustomerLogin
 }
