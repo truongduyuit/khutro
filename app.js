@@ -45,7 +45,7 @@ app.use((err, req, res, next) => {
 // Server
 const port = app.get('port') || configs.PORT
 app.listen(port, () => {
-    logger.log('debug' ,"Server đang mở ở port " + port)
+    console.log("Server đang mở ở port " + port)
 })
 
 module.exports = app

@@ -5,7 +5,7 @@ const blockModel = require('./block.model')
 const roomService = require('../rooms/room.service')
 const serviceService = require('../services/service.service')
 
-const CreateBlock = async (user, block) =>{
+module.exports.CreateBlock = async (user, block) =>{
     try {
         const blockSameName = await blockModel.findOne({nameBlock: block.nameBlock, owner: user._id})
         if (blockSameName) {
@@ -29,7 +29,7 @@ const CreateBlock = async (user, block) =>{
         return throwError(error)
     }
 }
-const GetBlocksOwner = async (user) => {
+module.exports.GetBlocksOwner = async (user) => {
     try {
         const blocks = await blockModel.find({owner: user._id})
         return blocks
@@ -42,7 +42,7 @@ const GetBlocksOwner = async (user) => {
     }
 }
 
-const GetBlockById = async (user, blockId) => {
+module.exports.GetBlockById = async (user, blockId) => {
     try {
         const block = await blockModel.findOne({
             _id: blockId,
@@ -60,7 +60,7 @@ const GetBlockById = async (user, blockId) => {
     }
 }
 
-const UpdateBlock = async (user, newBlock) =>{
+module.exports.UpdateBlock = async (user, newBlock) =>{
     try {
         const block = await GetBlockById(user, newBlock._id)
 
@@ -84,7 +84,7 @@ const UpdateBlock = async (user, newBlock) =>{
     }
 }
 
-const DeleteBlock = async (user, blockId, session) => {
+module.exports.DeleteBlock = async (user, blockId, session) => {
     try {
         const block = await GetBlockById(user, blockId)
 
@@ -103,7 +103,7 @@ const DeleteBlock = async (user, blockId, session) => {
     }
 }
 
-const DeleteBlocks = async (user, blockIds, session) => {
+module.exports.DeleteBlocks = async (user, blockIds, session) => {
     try {
         const deleteBlockPromises = []
         for (let i =0; i < blockIds.length; ++i) {
@@ -114,13 +114,4 @@ const DeleteBlocks = async (user, blockIds, session) => {
     } catch (error) {
         return throwError(error)
     }
-}
-
-module.exports = {
-    GetBlocksOwner,
-    GetBlockById,
-    CreateBlock,
-    UpdateBlock,
-    DeleteBlock,
-    DeleteBlocks
 }

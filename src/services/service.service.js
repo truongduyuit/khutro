@@ -4,7 +4,7 @@ const Code = require('./service.code')
 const blockModel = require('../blocks/block.model')
 const serviceModel = require('./service.model')
 
-const CreateService = async (user , service) => {
+module.exports.CreateService = async (user , service) => {
     try {
         const services = await GetBlockServices(user, service.block)
         for (let i = 0; i < services.length; ++i) {
@@ -30,7 +30,7 @@ const CreateService = async (user , service) => {
     }
 }
 
-const GetBlockServices = async (user, blockId) => {
+module.exports.GetBlockServices = async (user, blockId) => {
     try {
         const services = await serviceModel.find({
             $and: [{
@@ -49,7 +49,7 @@ const GetBlockServices = async (user, blockId) => {
     }
 }
 
-const GetServiceById = async (user, serviceId) => {
+module.exports.GetServiceById = async (user, serviceId) => {
     try {
         const service = await serviceModel.findOne({
             _id: serviceId,
@@ -66,13 +66,12 @@ const GetServiceById = async (user, serviceId) => {
     }
 }
 
-const UpdateService = async (user, newService, session) => {
+module.exports.UpdateService = async (user, newService, session) => {
     try {
         const services = await GetBlockServices(user, newService.block)
         for (let i = 0; i < services.length; ++i) {
             if (services[i]._id.toString() !== newService._id && services[i].nameService === newService.nameService){
                 return throwError({
-                    statusCode: 500,
                     errorCode: Code.NAME_SERVICE_EXIST,
                     message: 'Tên dịch vụ đã tồn tại !'
                 })
@@ -108,7 +107,7 @@ const UpdateService = async (user, newService, session) => {
     }
 }
 
-const DeleteService = async (user, serviceId, session) => {
+module.exports.DeleteService = async (user, serviceId, session) => {
     try {
         const service = await GetServiceById(user, serviceId)
 
@@ -123,7 +122,7 @@ const DeleteService = async (user, serviceId, session) => {
     }
 }
 
-const DeleteServices = async (user, serviceIds, session) => {
+module.exports.DeleteServices = async (user, serviceIds, session) => {
     try {
         const deleteServicePromises = []
         for (let i =0; i < serviceIds.length; i++){
@@ -134,13 +133,4 @@ const DeleteServices = async (user, serviceIds, session) => {
     } catch (error) {
         return throwError(error)
     }
-}
-
-module.exports = {
-    CreateService,
-    GetBlockServices,
-    GetServiceById,
-    UpdateService,
-    DeleteService,
-    DeleteServices
 }

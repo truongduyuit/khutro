@@ -9,7 +9,7 @@ const userModel = require('../users/user.model')
 const blockModel = require('../blocks/block.model')
 
 
-const CreateServiceDetail = async (user, serviceDetail) => {
+module.exports.CreateServiceDetail = async (user, serviceDetail) => {
     try {
         const block = await blockModel.findOne({
             rooms: {$elemMatch: {$eq: serviceDetail.room}},
@@ -30,7 +30,7 @@ const CreateServiceDetail = async (user, serviceDetail) => {
     }
 }
 
-const GetServiceDetailByRoomAndMonth = async (user, roomId, month, year) => {
+module.exports.GetServiceDetailByRoomAndMonth = async (user, roomId, month, year) => {
     try {
         if (user.role === USER_ROLE_ENUM.CUSTOMER){
             const _customers = await userModel.find({email: user.email, room: roomId})
@@ -64,7 +64,7 @@ const GetServiceDetailByRoomAndMonth = async (user, roomId, month, year) => {
     }
 }
 
-const GetServiceDetailsByOwner = async (user) => {
+module.exports.GetServiceDetailsByOwner = async (user) => {
     try {
         const serviceDetails  = await serviceDetailModel.find({
             owner: user._id
@@ -79,7 +79,7 @@ const GetServiceDetailsByOwner = async (user) => {
     }
 }
 
-const GetServiceDetailById = async (user, serviceDetailId) => {
+module.exports.GetServiceDetailById = async (user, serviceDetailId) => {
     try {
         const serviceDetail  = await serviceDetailModel.findOne({
             _id: serviceDetailId,
@@ -96,7 +96,7 @@ const GetServiceDetailById = async (user, serviceDetailId) => {
     }
 }
 
-const UpdateServiceDetail = async (user, newServiceDetail) => {
+module.exports.UpdateServiceDetail = async (user, newServiceDetail) => {
     try {
         const block = await blockModel.findOne({
             rooms: {$elemMatch: {$eq: newServiceDetail.room}},
@@ -117,7 +117,7 @@ const UpdateServiceDetail = async (user, newServiceDetail) => {
     }
 }
 
-const DeleteServiceDetail = async (user, serviceDetailId) => {
+module.exports.DeleteServiceDetail = async (user, serviceDetailId) => {
     try {
         const serviceDetail = await GetServiceDetailById(user, serviceDetailId)
 
@@ -129,13 +129,4 @@ const DeleteServiceDetail = async (user, serviceDetailId) => {
         if (!error.errorCode) error.errorCode = Code.DELETE_SERVICE_DETAIL_FAILED
         return throwError(error)
     }
-}
-
-module.exports = {
-    CreateServiceDetail,
-    GetServiceDetailByRoomAndMonth,
-    GetServiceDetailsByOwner,
-    GetServiceDetailById,
-    UpdateServiceDetail,
-    DeleteServiceDetail
 }

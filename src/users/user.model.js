@@ -25,10 +25,6 @@ const schema = new Schema({
     type: Boolean,
     default: false
   },
-  dateJoined: {
-    type: Date,
-    default: Date.now()
-  },
   blocks:[{
     type: Schema.Types.ObjectId,
     ref: 'block',

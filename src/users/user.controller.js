@@ -1,132 +1,69 @@
+const {responseToClient} = require('../../helpers/responseToClient.helper')
 const userService = require('./user.service')
 
-const Register = async (req, res, next) => {
+module.exports.Register = async (req, res, next) => {
   try {
     const {email, password} = req.body
     const user = await userService.Register(email, password)
 
-    if (user.error) return res.status(500).json({
-      error: user.error
-    })
-
-    return res.status(201).json({
-      message: "Đăng ký tài khoản thành công !",
-      user
-    })
+    return responseToClient(res, {statusCode: 201, data: user})
   } catch (error) {
     return next(error)
   }
 }
 
-const Login = async (req, res, next) => {
+module.exports.Login = async (req, res, next) => {
   try {
     const {email, password} = req.body
-    const result = await userService.Login(email, password)
+    const roleAndToken = await userService.Login(email, password)
 
-    if (result.error){
-      return res.status(500).json({
-        error : {
-            message: result.error,
-        },
-        link : result.link
-      })
-    }
-
-    return res.status(200).json({
-      message: "Đăng nhập thành công",
-      result
-    })
+    return responseToClient(res, {data: roleAndToken})
   } catch (error) {
     return next(error)
   }
 }
 
-const ConfirmUser = async (req, res, next) => {
+module.exports.ConfirmUser = async (req, res, next) => {
   try {
     const {confirmToken} = req.params
-    const result = await userService.ConfirmUser(confirmToken)
+    const token = await userService.ConfirmUser(confirmToken)
 
-    if (result.error) return res.status(500).json({
-      error: {
-        message: result.error.message
-      }
-    })
-
-    return res.status(200).json({
-      message: "Xác thực email thành công!",
-      token: result.token
-    })
+    return responseToClient(res, {data: token})
   } catch (error) {
     return next(error)
   }
 }
 
-const ChangePassword = async (req, res, next) => {
+module.exports.ChangePassword = async (req, res, next) => {
     try {
         const {userId} = req
         const {oldPassword, newPassword} = req.body
-
-        if (oldPassword !== newPassword){
-            const result = await userService.ChangePassword(userId, oldPassword, newPassword)
-            if (result.error) return res.status(200).json({
-                error: {
-                        message: result.error.message
-                }
-            })
-        }
-        return res.status(200).json({
-            message: 'Cập nhật mật khẩu thành công !',
-        })
+        if (oldPassword !== newPassword) await userService.ChangePassword(userId, oldPassword, newPassword)
+        
+        return responseToClient(res)
     } catch (error) {
         return next(error)
     }
 }
 
-const ChangeInfo = async (req, res, next) => {
+module.exports.ChangeInfo = async (req, res, next) => {
     try {
         const {userId} = req
-        const result = await userService.ChangeInfo(userId, req.body)
+        const user = await userService.ChangeInfo(userId, req.body)
 
-        if (result.error) return res.status(400).json({
-            error: {
-                message: result.error
-            }
-        })
-
-        return res.status(200).json({
-            message: 'Cập nhật thông tin thành công'
-        })
+        return responseToClient(res, {data: user})
     } catch (error) {
         return next(error)
     }
 }
 
-const CustomerLogin = async (req, res, next) => {
+module.exports.CustomerLogin = async (req, res, next) => {
     try {
         const payload = req.body
+        const roleAndToken = await userService.CustomerLogin(payload)
 
-        const _result = await userService.CustomerLogin(payload)
-        console.log('_result', _result)
-        if (_result.error) return res.status(500).json({
-            error: {
-                message: _result.error.message
-            }
-        })
-
-        return res.status(200).json({
-            message: 'Đăng nhập thành công !',
-            _result
-        })
+        return responseToClient(res, {data: roleAndToken})
     } catch (error) {
         return next(error)
     }
-}
-
-module.exports = {
-  Register,
-  Login,
-  ConfirmUser,
-  ChangePassword,
-  ChangeInfo,
-  CustomerLogin
 }
